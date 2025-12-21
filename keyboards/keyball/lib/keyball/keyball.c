@@ -158,7 +158,10 @@ __attribute__((weak)) void keyball_on_apply_motion_to_mouse_move(report_mouse_t 
 
 __attribute__((weak)) void keyball_on_apply_motion_to_mouse_scroll(report_mouse_t *report, report_mouse_t *output, bool is_left) {
     // consume motion of trackball.
-    int16_t div = 1 << (keyball_get_scroll_div() - 1);
+    #ifndef KEYBALL_SCROLL_DIVISOR
+    #define KEYBALL_SCROLL_DIVISOR (1 << (keyball_get_scroll_div() - 1))
+    #endif
+    int16_t div = KEYBALL_SCROLL_DIVISOR;
     int16_t x = divmod16(&report->x, div);
     int16_t y = divmod16(&report->y, div);
 
@@ -204,11 +207,28 @@ __attribute__((weak)) void keyball_on_apply_motion_to_mouse_scroll(report_mouse_
 #endif
 }
 
-static void motion_to_mouse(report_mouse_t *report, report_mouse_t *output, bool is_left, bool as_scroll) {
+static void motion_to_mouse(report_mouse_t *report, report_mouse_t *output, bool is_left, bool as_scroll, keyball_motion_t *accum) {
+    accum->x += report->x;
+    accum->y += report->y;
+
+    // Clip to int8_t range for the report, but keep full precision in accum
+    int8_t rx = clip2int8(accum->x);
+    int8_t ry = clip2int8(accum->y);
+
+    report_mouse_t temp_report = {0};
+    temp_report.x = rx;
+    temp_report.y = ry;
+
     if (as_scroll) {
-        keyball_on_apply_motion_to_mouse_scroll(report, output, is_left);
+        keyball_on_apply_motion_to_mouse_scroll(&temp_report, output, is_left);
+        // Update accumulator with the remainder (temp_report.x/y now holds the remainder)
+        // plus any overflow that was clipped out
+        accum->x = temp_report.x + (accum->x - rx);
+        accum->y = temp_report.y + (accum->y - ry);
     } else {
-        keyball_on_apply_motion_to_mouse_move(report, output, is_left);
+        keyball_on_apply_motion_to_mouse_move(&temp_report, output, is_left);
+        accum->x = 0;
+        accum->y = 0;
     }
 
     // clear motion
@@ -220,8 +240,8 @@ report_mouse_t pointing_device_task_combined_kb(report_mouse_t left_report, repo
     report_mouse_t output = {0};
     report_mouse_t *this_report = is_keyboard_left() ? &left_report : &right_report;
     report_mouse_t *that_report = is_keyboard_left() ? &right_report : &left_report;
-    motion_to_mouse(this_report, &output, is_keyboard_left(), keyball.scroll_mode);
-    motion_to_mouse(that_report, &output, !is_keyboard_left(), keyball.scroll_mode ^ keyball.this_have_ball);
+    motion_to_mouse(this_report, &output, is_keyboard_left(), keyball.scroll_mode, &keyball.this_motion);
+    motion_to_mouse(that_report, &output, !is_keyboard_left(), keyball.scroll_mode ^ keyball.this_have_ball, &keyball.that_motion);
     // store mouse report for OLED.
     keyball.last_mouse = output;
     return output;

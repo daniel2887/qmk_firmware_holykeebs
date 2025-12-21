@@ -39,3 +39,8 @@
 
 // Unicode Settings
 #define UNICODE_SELECTED_MODES UNICODE_MODE_LINUX, UNICODE_MODE_WINDOWS, UNICODE_MODE_WINCOMPOSE
+
+// Keyball settings
+
+// Scroll sensitivity divisor (Default is 4). Higher = slower/less sensitive.
+#define KEYBALL_SCROLL_DIVISOR 42

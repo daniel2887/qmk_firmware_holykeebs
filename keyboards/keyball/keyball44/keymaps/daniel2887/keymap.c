@@ -154,6 +154,11 @@ void matrix_init_user(void) {
     set_unicode_input_mode(UNICODE_MODE_LINUX);
 }
 
+void keyboard_post_init_user(void) {
+    // Override EEPROM settings to ensure scroll snapping is disabled by default
+    keyball_set_scrollsnap_mode(KEYBALL_SCROLLSNAP_MODE_FREE);
+}
+
 // Layer State Logic
 layer_state_t layer_state_set_user(layer_state_t state) {
     // Tri-layers
