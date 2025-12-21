@@ -64,87 +64,88 @@ tap_dance_action_t tap_dance_actions[] = {
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [L_BASE] = LAYOUT_universal(
-        KC_TAB,         KC_Q,          KC_W,            KC_E,            KC_R,             KC_T,                                            KC_Y,    KC_U,          KC_I,      KC_O,           KC_P,     KC_BSPC,
-        MO(L_MOUSE),    KC_A,          LSFT_T(KC_S),    LT(L_SYMB,KC_D), LT(L_NAV,KC_F),   LT(L_MOUSE,KC_G),                                KC_H,    KC_J,          KC_K,      LSFT_T(KC_L),   KC_SCLN,  LT(L_MOUSE,KC_QUOT),
-        KC_LSFT,        LT(L_MEDIA,KC_Z), KC_X,         KC_C,            KC_V,             KC_B,                                            KC_N,    KC_M,          KC_COMM,   KC_DOT,         KC_SLSH,  KC_ENT,
-        KC_NO,          KC_NO,         KC_LGUI,         LALT_T(KC_APP),  KC_LCTL,                                           KC_SPC,         LT(L_NAV,CW_TOGG), KC_NO,      KC_NO,     MO(L_FN)
+        KC_TAB,      KC_Q,             KC_W,            KC_E,            KC_R,             KC_T,                                        KC_Y,              KC_U,  KC_I,    KC_O,         KC_P,    KC_BSPC,
+        MO(L_MOUSE), KC_A,             LSFT_T(KC_S),    LT(L_SYMB,KC_D), LT(L_NAV,KC_F),   LT(L_MOUSE,KC_G),                            KC_H,              KC_J,  KC_K,    LSFT_T(KC_L), KC_SCLN, LT(L_MOUSE,KC_QUOT),
+        KC_LSFT,     LT(L_MEDIA,KC_Z), KC_X,            KC_C,            KC_V,             KC_B,                                        KC_N,              KC_M,  KC_COMM, KC_DOT,       KC_SLSH, KC_ENT,
+                                       KC_NO,           KC_NO,           KC_LGUI,          LALT_T(KC_APP),   KC_LCTL,           KC_SPC, LT(L_NAV,CW_TOGG), KC_NO, KC_NO,                 MO(L_FN)
     ),
 
+    // Outdated -- needs cleanup
     [L_GAME] = LAYOUT_universal(
-        TD(TD_TAB_ESC), KC_Q,          KC_W,            KC_E,            KC_R,             KC_T,                                            KC_Y,    KC_U,          KC_I,      KC_O,           KC_P,     KC_BSPC,
-        LT(L_MEDIA,KC_LGUI), KC_A,     KC_S,            KC_D,            KC_F,             KC_G,                                            KC_H,    KC_J,          KC_K,      KC_L,           KC_SCLN,  KC_QUOT,
-        KC_LSFT,        KC_Z,          KC_X,            KC_C,            KC_V,             KC_B,                                            KC_N,    KC_M,          KC_COMM,   KC_DOT,         KC_SLSH,  KC_ENT,
-        KC_NO,          KC_NO,         KC_LCTL,         LT(L_GAME_NUM,KC_LALT), KC_SPC,                                     KC_SPC,         MO(L_NAV),     KC_NO,      KC_NO,     MO(L_FN)
+        TD(TD_TAB_ESC), KC_Q,           KC_W,           KC_E,           KC_R,           KC_T,                                           KC_Y,           KC_U,           KC_I,           KC_O,           KC_P,           KC_BSPC,
+        LT(L_MEDIA,KC_LGUI),KC_A,       KC_S,           KC_D,           KC_F,           KC_G,                                           KC_H,           KC_J,           KC_K,           KC_L,           KC_SCLN,        KC_QUOT,
+        KC_LSFT,        KC_Z,           KC_X,           KC_C,           KC_V,           KC_B,                                           KC_N,           KC_M,           KC_COMM,        KC_DOT,         KC_SLSH,        KC_ENT,
+                                        KC_NO,          KC_NO,          KC_LCTL,        LT(L_GAME_NUM,KC_LALT), KC_SPC,      KC_SPC,     MO(L_NAV),      KC_NO,          KC_NO,                          MO(L_FN)
     ),
 
     [L_NAV] = LAYOUT_universal(
         KC_NO,          KC_ESC,        KC_NO,           KC_NO,           KC_NO,            LALT(LCTL(LSFT(KC_T))),                          KC_PGUP, KC_HOME,       KC_UP,     KC_END,         KC_DEL,   KC_BSPC,
         KC_NO,          KC_NO,         KC_LSFT,         KC_TRNS,         KC_NO,            KC_NO,                                           KC_PGDN, KC_LEFT,       KC_DOWN,   KC_RGHT,        KC_NO,    KC_NO,
-        KC_LSFT,        KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         LALT(LCTL(KC_LEFT)), LALT(LCTL(KC_RIGHT)), KC_NO, KC_NO,
-        KC_NO,          KC_NO,         KC_LGUI,         KC_LALT,         KC_LCTL,                                           KC_BSPC,        KC_ENT,        KC_NO,      KC_NO,     MO(L_FN)
+        KC_LSFT,        KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_BTN1,       KC_BTN2,   KC_BTN3,        KC_NO,    KC_NO,
+        KC_NO,          KC_NO,                                           KC_LGUI,          KC_LALT, KC_LCTL,                KC_BSPC,        KC_ENT,                 KC_NO,     KC_NO,          MO(L_FN)
     ),
 
     [L_SYMB] = LAYOUT_universal(
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_GRV,  KC_LBRC,       KC_EXLM,   KC_RBRC,        KC_ASTR,  KC_NO,
         KC_NO,          KC_NO,         KC_LSFT,         KC_NO,           KC_TRNS,          KC_NO,                                           KC_AMPR, KC_LPRN,       KC_MINS,   KC_RPRN,        KC_DLR,   KC_CIRC,
         KC_LSFT,        KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_PERC, KC_AT,         KC_EQL,    KC_HASH,        KC_BSLS,  KC_NO,
-        KC_NO,          KC_NO,         KC_LGUI,         KC_LALT,         KC_LCTL,                                           KC_NO,          KC_NO,         KC_NO,      KC_NO,     MO(L_FN)
+                                       KC_NO,           KC_NO,           KC_LGUI,          KC_LALT,     KC_LCTL,            KC_NO,          KC_NO,                  KC_NO,     KC_NO,          MO(L_FN)
     ),
 
     [L_NUM] = LAYOUT_universal(
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_7,          KC_8,      KC_9,           KC_ASTR,  KC_NO,
         KC_NO,          KC_NO,         KC_LSFT,         KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_4,          KC_5,      KC_6,           KC_NO,    KC_NO,
         KC_LSFT,        KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_DOT,  KC_1,          KC_2,      KC_3,           KC_SLSH,  KC_NO,
-        KC_NO,          KC_NO,         KC_LGUI,         KC_LALT,         KC_LCTL,                                           KC_0,           KC_NO,         KC_NO,      KC_NO,     MO(L_FN)
+                                       KC_NO,           KC_NO,           KC_LGUI,          KC_LALT,     KC_LCTL,            KC_0,           KC_NO,                  KC_NO,     KC_NO,          MO(L_FN)
     ),
 
     [L_MEDIA] = LAYOUT_universal(
         KC_ESC,         KC_NO,         KC_MPRV,         KC_MPLY,         KC_MNXT,          KC_VOLU,                                         KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_MUTE,                                         KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_VOLD,                                         KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,                                             KC_NO,          KC_NO,         KC_NO,      KC_NO,     KC_NO
+                                       KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_NO,             KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
     ),
 
     [L_ARROWS] = LAYOUT_universal(
         KC_ESC,         KC_NO,         KC_NO,           KC_UP,           KC_NO,            KC_VOLU,                                         KC_VOLU, KC_NO,         KC_UP,     KC_NO,          KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_LEFT,         KC_DOWN,         KC_RIGHT,         KC_MUTE,                                         KC_MUTE, KC_LEFT,       KC_DOWN,   KC_RIGHT,       KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_VOLD,                                         KC_VOLD, KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_SPC,                                            KC_SPC,         KC_NO,         KC_NO,      KC_NO,     MO(L_FN)
+                                       KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_SPC,            KC_SPC,         KC_NO,                  KC_NO,     KC_NO,          MO(L_FN)
     ),
 
     [L_FN] = LAYOUT_universal(
         KC_PSCR,        KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_F12,  KC_F7,         KC_F8,     KC_F9,          KC_NO,    KC_SLEP,
         KC_NO,          KC_NO,         KC_LSFT,         MO(L_SYMB),      MO(L_NAV),        KC_NO,                                           KC_F11,  KC_F4,         KC_F5,     KC_F6,          KC_NO,    KC_NO,
         KC_LSFT,        KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_F10,  KC_F1,         KC_F2,     KC_F3,          KC_NO,    TD(TD_TO_LAYER),
-        KC_NO,          KC_NO,         KC_LGUI,         KC_LALT,         KC_LCTL,                                           KC_NO,          KC_NO,         KC_NO,      KC_NO,     KC_NO
+                                       KC_NO,           KC_NO,           KC_LGUI,          KC_LALT,      KC_LCTL,           KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
     ),
 
     [L_UNI_NAV] = LAYOUT_universal(
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_UP), KC_NO,          KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           MO(L_SYMB),      KC_NO,            KC_NO,                                           KC_NO,   UC(UC_LEFT),   UC(UC_DOWN), UC(UC_RIGHT), KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_BIDIR), KC_NO,       KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,                                             KC_NO,          KC_NO,         KC_NO,      KC_NO,     KC_NO
+        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_UP),    KC_NO,        KC_NO,    KC_NO,
+        KC_NO,          KC_NO,         KC_NO,           MO(L_SYMB),      KC_NO,            KC_NO,                                           KC_NO,   UC(UC_LEFT),   UC(UC_DOWN),  UC(UC_RIGHT), KC_NO,    KC_NO,
+        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_BIDIR), KC_NO,        KC_NO,    KC_NO,
+                                       KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_NO,             KC_NO,          KC_NO,                  KC_NO,        KC_NO,        KC_NO
     ),
 
     [L_UNI_MATH] = LAYOUT_universal(
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_NE), KC_NO,          UC(UC_DEG), KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_RE), KC_NO,          KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_LE), UC(UC_GE),      UC(UC_QE), KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,                                             UC(UC_DEG),     KC_NO,         KC_NO,      KC_NO,     KC_NO
+        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_RE), KC_NO,          KC_NO,      KC_NO,
+        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         UC(UC_LE), UC(UC_GE),      UC(UC_QE),  KC_NO,
+                                       KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_NO,             UC(UC_DEG),     KC_NO,                  KC_NO,     KC_NO,          KC_NO
     ),
 
     [L_GAME_NUM] = LAYOUT_universal(
         KC_ESC,         KC_1,          KC_NO,           KC_2,            KC_3,             KC_6,                                            KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_4,             KC_7,                                            KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_5,             KC_8,                                            KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,                                             KC_NO,          KC_NO,         KC_NO,      KC_NO,     KC_NO
+                                       KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_NO,             KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
     ),
 
     [L_MOUSE] = LAYOUT_universal(
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_WH_D, KC_WH_L,       KC_MS_U,   KC_WH_R,        KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_LSFT,         KC_NO,           KC_NO,            KC_NO,                                           KC_WH_U, KC_MS_L,       KC_MS_D,   KC_MS_R,        KC_NO,    KC_NO,
+        KC_NO,          KC_NO,         KC_LSFT,         KC_NO,           KC_NO,            KC_NO,                                           KC_WH_U, KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_LGUI,         KC_LALT,         KC_LCTL,                                           KC_BTN1,        KC_BTN2,       KC_NO,      KC_NO,     KC_BTN3
+                                       KC_NO,           KC_NO,           KC_LGUI,          KC_LALT,      KC_LCTL,           KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
     )
 };
 
