@@ -207,9 +207,59 @@ __attribute__((weak)) void keyball_on_apply_motion_to_mouse_scroll(report_mouse_
 #endif
 }
 
+#ifdef KEYBALL_POINTER_ACCEL_ENABLE
+static uint16_t isqrt16(uint16_t n) {
+    uint16_t root = 0;
+    uint16_t bit = 1 << 14;
+    while (bit > n) bit >>= 2;
+    while (bit != 0) {
+        if (n >= root + bit) {
+            n -= root + bit;
+            root = (root >> 1) + bit;
+        } else {
+            root >>= 1;
+        }
+        bit >>= 2;
+    }
+    return root;
+}
+
+static void apply_acceleration(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
+    // Fixed point constants (Q8.8)
+    const int32_t BASE = (int32_t)(KEYBALL_ACCEL_BASE * 256.0f);
+    const int32_t FACTOR = (int32_t)(KEYBALL_ACCEL_FACTOR * 256.0f);
+#ifdef KEYBALL_ACCEL_MAX
+    const int32_t MAX_SCALE = (int32_t)(KEYBALL_ACCEL_MAX * 256.0f);
+#endif
+
+    uint16_t speed = isqrt16((int16_t)dx * dx + (int16_t)dy * dy);
+    int32_t scale = BASE + (speed * FACTOR);
+
+#ifdef KEYBALL_ACCEL_MAX
+    if (scale > MAX_SCALE) scale = MAX_SCALE;
+#endif
+
+    int32_t sx = (int32_t)dx * scale + accum->remainder_x;
+    int32_t sy = (int32_t)dy * scale + accum->remainder_y;
+
+    *out_x = sx >> 8;
+    *out_y = sy >> 8;
+
+    accum->remainder_x = sx - (*out_x << 8);
+    accum->remainder_y = sy - (*out_y << 8);
+}
+#endif
+
 static void motion_to_mouse(report_mouse_t *report, report_mouse_t *output, bool is_left, bool as_scroll, keyball_motion_t *accum) {
+#ifdef KEYBALL_POINTER_ACCEL_ENABLE
+    int16_t ax, ay;
+    apply_acceleration(accum, report->x, report->y, &ax, &ay);
+    accum->x += ax;
+    accum->y += ay;
+#else
     accum->x += report->x;
     accum->y += report->y;
+#endif
 
     // Clip to int8_t range for the report, but keep full precision in accum
     int8_t rx = clip2int8(accum->x);

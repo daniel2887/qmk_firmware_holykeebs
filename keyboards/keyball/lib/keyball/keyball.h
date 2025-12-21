@@ -137,6 +137,10 @@ typedef struct {
 typedef struct {
     int16_t x;
     int16_t y;
+#ifdef KEYBALL_POINTER_ACCEL_ENABLE
+    int16_t remainder_x;
+    int16_t remainder_y;
+#endif
 } keyball_motion_t;
 
 typedef uint8_t keyball_cpi_t;

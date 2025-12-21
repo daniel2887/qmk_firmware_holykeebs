@@ -44,3 +44,15 @@
 
 // Scroll sensitivity divisor (Default is 4). Higher = slower/less sensitive.
 #define KEYBALL_SCROLL_DIVISOR 42
+
+// Keyball Pointer Acceleration
+#define KEYBALL_POINTER_ACCEL_ENABLE
+// Base sensitivity (0.0 - 1.0 for dampening).
+// Lower this value (e.g. 0.3) to make slow movements much slower/more precise.
+#define KEYBALL_ACCEL_BASE 0.4
+// Acceleration rate per count of speed.
+// Increase this to make the cursor accelerate more aggressively as you move faster.
+#define KEYBALL_ACCEL_FACTOR 0.10
+// Maximum sensitivity multiplier.
+// Increase this if you want to cover more distance (e.g. multiple monitors) when flinging.
+#define KEYBALL_ACCEL_MAX 6.0
