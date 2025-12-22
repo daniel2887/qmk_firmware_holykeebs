@@ -37,6 +37,10 @@ enum tap_dances {
     TD_TO_LAYER
 };
 
+enum custom_keycodes {
+    NAV_CW = KEYBALL_SAFE_RANGE,
+};
+
 // Tap Dance Definitions
 void td_tab_esc_finished(tap_dance_state_t *state, void *user_data) {
     if (state->count == 1) {
@@ -64,9 +68,9 @@ tap_dance_action_t tap_dance_actions[] = {
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [L_BASE] = LAYOUT_universal(
         KC_TAB,      KC_Q,             KC_W,            KC_E,            KC_R,             KC_T,                                        KC_Y,              KC_U,  KC_I,    KC_O,         KC_P,    KC_BSPC,
-        KC_NO,       KC_A,             LSFT_T(KC_S),    LT(L_SYMB,KC_D), LT(L_NAV,KC_F),   KC_G,                                        KC_H,              KC_J,  KC_K,    LSFT_T(KC_L), KC_SCLN, KC_QUOT,
+        KC_NO,       KC_A,             LSFT_T(KC_S),    LT(L_SYMB,KC_D), LT(L_NAV,KC_F),   KC_G,                                        KC_H,              KC_J,  KC_K,    RSFT_T(KC_L), KC_SCLN, KC_QUOT,
         KC_LSFT,     LT(L_MEDIA,KC_Z), KC_X,            KC_C,            KC_V,             KC_B,                                        KC_N,              KC_M,  KC_COMM, KC_DOT,       KC_SLSH, KC_ENT,
-                                       KC_NO,           KC_NO,           KC_LGUI,          LALT_T(KC_APP),   KC_LCTL,           KC_SPC, LT(L_NAV,CW_TOGG), KC_NO, KC_NO,                 MO(L_FN)
+                                       KC_NO,           KC_NO,           KC_LGUI,          LALT_T(KC_APP),   KC_LCTL,           KC_SPC, NAV_CW,            KC_NO, KC_NO,                 MO(L_FN)
     ),
 
     // Outdated -- needs cleanup
@@ -149,6 +153,58 @@ void matrix_init_user(void) {
 void keyboard_post_init_user(void) {
     // Override EEPROM settings to ensure scroll snapping is disabled by default
     keyball_set_scrollsnap_mode(KEYBALL_SCROLLSNAP_MODE_FREE);
+}
+
+bool caps_word_press_user(uint16_t keycode) {
+    switch (keycode) {
+        // Keycodes that continue Caps Word, with shift applied.
+        case KC_A ... KC_Z:
+        case KC_RSFT:
+        case KC_LSFT:
+            add_weak_mods(MOD_BIT(KC_LSFT));  // Apply shift to next key.
+            return true;
+
+        // Keycodes that continue Caps Word, without shifting.
+        case KC_1 ... KC_0:
+        case KC_MINS:
+        case KC_SLSH:
+        case KC_BSLS:
+        case KC_UNDS:
+            return true;
+
+        default:
+            return false;  // Deactivate Caps Word.
+    }
+}
+
+static uint16_t nav_cw_timer = 0;
+static bool nav_cw_used = false;
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (keycode == NAV_CW) {
+        if (record->event.pressed) {
+            // 1. Enter navigation layer and start a timer to check later if this ends up being a "tap"
+            nav_cw_timer = timer_read();
+            nav_cw_used = false;
+            layer_on(L_NAV);
+        } else {
+            // 3. On release, check if this was a "tap" of the LT(L_NAV) button.
+            // A tap means: (a) no other button was pressed while in L_NAV, and
+            //              (b) the button was released faster than TAPPING_TERM
+            layer_off(L_NAV);
+            if (!nav_cw_used && timer_elapsed(nav_cw_timer) < TAPPING_TERM) {
+                caps_word_toggle();
+            }
+        }
+        return false;
+    }
+
+    // 2. Keep track whether any other key was pressed while in L_NAV
+    if (layer_state_is(L_NAV) && record->event.pressed) {
+        nav_cw_used = true;
+    }
+
+    return true;
 }
 
 // Layer State Logic
