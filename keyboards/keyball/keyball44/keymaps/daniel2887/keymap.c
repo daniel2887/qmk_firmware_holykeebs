@@ -17,6 +17,7 @@ enum layers {
     L_UNI_NAV,
     L_UNI_MATH,
     L_GAME_NUM,
+    L_AUTO_MOUSE
 };
 
 // Unicode Code Points
@@ -142,7 +143,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_4,             KC_7,                                            KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_5,             KC_8,                                            KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
                                        KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_NO,             KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
-    )
+    ),
+
+    [L_AUTO_MOUSE] = LAYOUT_universal(
+        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,     KC_NO,
+        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   LALT(KC_LEFT), KC_NO,     LALT(KC_RIGHT),  KC_NO,     KC_NO,
+        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_BTN1,       KC_BTN2,   KC_BTN3,        KC_NO,     KC_NO,
+                                       KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_NO,             KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
+    ),
 };
 
 void matrix_init_user(void) {
@@ -153,6 +161,7 @@ void matrix_init_user(void) {
 void keyboard_post_init_user(void) {
     // Override EEPROM settings to ensure scroll snapping is disabled by default
     keyball_set_scrollsnap_mode(KEYBALL_SCROLLSNAP_MODE_FREE);
+    set_auto_mouse_enable(true);
 }
 
 bool caps_word_press_user(uint16_t keycode) {
@@ -220,7 +229,12 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     }
 
     // Keyball Scroll Mode
-    keyball_set_scroll_mode(layer_state_cmp(state, L_NUM));
+    keyball_set_scroll_mode(
+        // Scroll mode when using both halves, triggered via numbers layer (for ergonomic reasons)
+        layer_state_cmp(state, L_NUM) ||
+        // Scroll mode when using only right half, triggered while auto mouse
+        // is still active and pinky is triggering L_FN
+        (layer_state_cmp(state, L_AUTO_MOUSE) && layer_state_cmp(state, L_FN)));
 
     return state;
 }

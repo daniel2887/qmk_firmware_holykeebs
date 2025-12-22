@@ -1,7 +1,8 @@
 #pragma once
 
 #define POINTING_DEVICE_AUTO_MOUSE_ENABLE
-#define AUTO_MOUSE_DEFAULT_LAYER 11
+#define AUTO_MOUSE_DEFAULT_LAYER 11 // L_AUTO_MOUSE
+#define AUTO_MOUSE_TIME 500
 
 // Match ZMK tapping term approximately
 #define TAPPING_TERM 200
