@@ -22,8 +22,8 @@
 #define AUTO_MOUSE_DEFAULT_LAYER 11
 
 // Match ZMK tapping term approximately
-#define TAPPING_TERM 200
-#define QUICK_TAP_TERM 200
+#define TAPPING_TERM 100
+//#define QUICK_TAP_TERM 200
 #define PERMISSIVE_HOLD
 
 // Caps Word

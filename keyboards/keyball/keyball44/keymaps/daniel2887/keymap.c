@@ -85,7 +85,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_NO,          KC_ESC,        KC_NO,           KC_NO,           KC_NO,            LALT(LCTL(LSFT(KC_T))),                          KC_PGUP, KC_HOME,       KC_UP,     KC_END,         KC_DEL,   KC_BSPC,
         KC_NO,          KC_NO,         KC_LSFT,         KC_TRNS,         KC_NO,            KC_NO,                                           KC_PGDN, KC_LEFT,       KC_DOWN,   KC_RGHT,        KC_NO,    KC_NO,
         KC_LSFT,        KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_BTN1,       KC_BTN2,   KC_BTN3,        KC_NO,    KC_NO,
-        KC_NO,          KC_NO,                                           KC_LGUI,          KC_LALT, KC_LCTL,                KC_BSPC,        KC_ENT,                 KC_NO,     KC_NO,          MO(L_FN)
+        KC_NO,          KC_NO,                                           KC_LGUI,          KC_LALT, KC_LCTL,                KC_BSPC,        KC_NO,                  KC_NO,     KC_NO,          MO(L_FN)
     ),
 
     [L_SYMB] = LAYOUT_universal(
@@ -220,11 +220,7 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     }
 
     // Keyball Scroll Mode
-    if (layer_state_cmp(state, L_MOUSE)) {
-        keyball_set_scroll_mode(true);
-    } else {
-        keyball_set_scroll_mode(false);
-    }
+    keyball_set_scroll_mode(layer_state_cmp(state, L_NUM));
 
     return state;
 }
