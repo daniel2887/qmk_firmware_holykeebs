@@ -233,3 +233,51 @@ void oledkit_render_info_user(void) {
     keyball_oled_render_layerinfo();
 }
 #endif
+
+// Press <= tapping_term: tap
+// Press > tapping_term: hold
+uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+		case LSFT_T(KC_S):
+		case RSFT_T(KC_L):
+			return 150;
+		// This is to address unintended triggering of the mouse/media layer when
+		// typing words like "size" an rolling over "z" and "e". Increase tapping term
+		// required to switch into the media layer.
+		case LT(L_MEDIA,KC_Z):
+            return 300;
+        default:
+            return TAPPING_TERM;
+    }
+}
+
+bool get_retro_tapping(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+		case LSFT_T(KC_S):
+		case RSFT_T(KC_L):
+            return true;
+        default:
+            return false;
+    }
+}
+
+uint16_t get_quick_tap_term(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+		// quick-tap-ms enables repeated CTRL-Z by holding CTRL and double
+		// tapping and holding Z.
+		case LT(L_MEDIA,KC_Z):
+            return 200; // milliseconds
+
+		// This is to avoid a situation in which I want to type "CD-PHY"
+		// (where D + K should yield '-'), but I actually get "CDdk" due to
+		// auto-repeat of the letter D kicking in instead of a layer switch
+		// due to the quick double tap of D in that word.
+        case LT(L_SYMB,KC_D):
+		// Similarly, this is to avoid a situation in which I want to type "df",
+		// or any word ending with F, followed by enter or some navigation
+		// key (which is on the layer triggered by F).
+		case LT(L_NAV,KC_F):
+        default:
+            return 0;
+    }
+}
