@@ -17,7 +17,6 @@ enum layers {
     L_UNI_NAV,
     L_UNI_MATH,
     L_GAME_NUM,
-    L_MOUSE
 };
 
 // Unicode Code Points
@@ -65,7 +64,7 @@ tap_dance_action_t tap_dance_actions[] = {
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [L_BASE] = LAYOUT_universal(
         KC_TAB,      KC_Q,             KC_W,            KC_E,            KC_R,             KC_T,                                        KC_Y,              KC_U,  KC_I,    KC_O,         KC_P,    KC_BSPC,
-        MO(L_MOUSE), KC_A,             LSFT_T(KC_S),    LT(L_SYMB,KC_D), LT(L_NAV,KC_F),   LT(L_MOUSE,KC_G),                            KC_H,              KC_J,  KC_K,    LSFT_T(KC_L), KC_SCLN, LT(L_MOUSE,KC_QUOT),
+        KC_NO,       KC_A,             LSFT_T(KC_S),    LT(L_SYMB,KC_D), LT(L_NAV,KC_F),   KC_G,                                        KC_H,              KC_J,  KC_K,    LSFT_T(KC_L), KC_SCLN, KC_QUOT,
         KC_LSFT,     LT(L_MEDIA,KC_Z), KC_X,            KC_C,            KC_V,             KC_B,                                        KC_N,              KC_M,  KC_COMM, KC_DOT,       KC_SLSH, KC_ENT,
                                        KC_NO,           KC_NO,           KC_LGUI,          LALT_T(KC_APP),   KC_LCTL,           KC_SPC, LT(L_NAV,CW_TOGG), KC_NO, KC_NO,                 MO(L_FN)
     ),
@@ -139,13 +138,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_4,             KC_7,                                            KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_5,             KC_8,                                            KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
                                        KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_NO,             KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
-    ),
-
-    [L_MOUSE] = LAYOUT_universal(
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_WH_D, KC_WH_L,       KC_MS_U,   KC_WH_R,        KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_LSFT,         KC_NO,           KC_NO,            KC_NO,                                           KC_WH_U, KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,    KC_NO,
-                                       KC_NO,           KC_NO,           KC_LGUI,          KC_LALT,      KC_LCTL,           KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
     )
 };
 
