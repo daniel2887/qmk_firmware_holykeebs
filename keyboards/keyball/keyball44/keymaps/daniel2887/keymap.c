@@ -51,19 +51,21 @@ void td_tab_esc_finished(tap_dance_state_t *state, void *user_data) {
     }
 }
 
-void td_to_layer_finished(tap_dance_state_t *state, void *user_data) {
+static void td_default_layer(tap_dance_state_t *state, void *user_data) {
     if (state->count == 1) {
-        layer_move(L_BASE);
+        default_layer_set(1U << L_BASE);
     } else if (state->count == 2) {
-        layer_move(L_GAME);
+        default_layer_set(1U << L_GAME);
+    } else if (state->count == 3) {
+        default_layer_set(1U << L_ARROWS);
     } else {
-        layer_move(L_ARROWS);
+        reset_tap_dance(state);
     }
 }
 
 tap_dance_action_t tap_dance_actions[] = {
     [TD_TAB_ESC] = ACTION_TAP_DANCE_FN(td_tab_esc_finished),
-    [TD_TO_LAYER] = ACTION_TAP_DANCE_FN(td_to_layer_finished)
+    [TD_TO_LAYER] = ACTION_TAP_DANCE_FN(td_default_layer)
 };
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -260,6 +262,8 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
 		// required to switch into the media layer.
 		case LT(L_MEDIA,KC_Z):
             return 300;
+        case TD(TD_TO_LAYER):
+            return 1000;
         default:
             return TAPPING_TERM;
     }
