@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyball Tuner</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --surface: #2e2e2e;
+            --primary: #bb86fc;
+            --text: #e0e0e0;
+            --text-sec: #a0a0a0;
+            --grid: #333;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            width: 100%;
+            padding: 15px 30px;
+            background: var(--surface);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type=number] {
+            background: #222;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 5px 8px;
+            border-radius: 4px;
+            width: 60px;
+            font-family: 'Segoe UI', sans-serif;
+            /* Match UI font */
+        }
+
+        button {
+            background: var(--primary);
+            color: #121212;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            padding: 20px;
+            flex-grow: 1;
+            width: 100%;
+            max-width: 1200px;
+            box-sizing: border-box;
+            height: 90%;
+            overflow: hidden;
+            align-items: flex-start;
+        }
+
+        .editor-panel {
+            flex: 3;
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-height: 80vh;
+        }
+
+        .status-panel {
+            flex: 1;
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 280px;
+            max-width: 350px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+
+        .instructions {
+            background: rgba(187, 134, 252, 0.1);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #ddd;
+            line-height: 1.4;
+        }
+
+        .canvas-wrapper {
+            width: 100%;
+            height: 400px;
+            position: relative;
+            background: #1e1e1e;
+            border-radius: 4px;
+            border: 1px solid #444;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        h3,
+        h4 {
+            margin: 0 0 10px 0;
+            color: var(--text);
+        }
+
+        h4 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: var(--text-sec);
+            letter-spacing: 0.5px;
+        }
+
+        .gauge-container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .tooltip {
+            font-size: 0.8rem;
+            color: var(--text-sec);
+            margin-bottom: 5px;
+        }
+
+        .gauge-bar {
+            height: 24px;
+            background: #333;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 10px 0;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .gauge-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, #a370f7 100%);
+            width: 0%;
+            transition: width 0.05s ease-out;
+        }
+
+        #speedValue {
+            font-family: 'Consolas', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input[type=range] {
+            width: 300px;
+            /* Wider slider */
+            accent-color: var(--primary);
+            margin-right: 10px;
+        }
+
+        .code-output {
+            background: #111;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.75rem;
+            color: #ccc;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            flex-grow: 1;
+            border: 1px solid #333;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff5252;
+            margin-right: 15px;
+            vertical-align: middle;
+        }
+
+        .connected .status-indicator {
+            background: #69f0ae;
+            box-shadow: 0 0 8px #69f0ae;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <header style="display: flex; justify-content: center; padding: 15px 0;">
+        <div
+            style="width: 100%; max-width: 1200px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+            <div class="title-grp">
+                <h1 style="display:inline;">Keyball Tuner</h1>
+            </div>
+            <div class="header-controls">
+                <div id="statusDot" class="status-indicator"></div>
+                <button id="btnConnect">Connect</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="editor-panel">
+            <div class="instructions">
+                <strong>How to use:</strong><br>
+                1. <strong>Connect</strong> to your keyboard (Usage Page 0xFF60).<br>
+                2. <strong>Global Sensitivity</strong> sets the base speed multiplier.<br>
+                3. <strong>Adjust Curve</strong> to change acceleration relative to input speed.<br>
+                * <strong>Y-Axis Max</strong> is set manually below. Points are clamped to this max.<br>
+                * Curve is strictly <strong>monotonic</strong> (dragging one point pushes others).
+            </div>
+
+            <div
+                style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; padding-left: 5px; /* Added Padding */">
+                <h3>Acceleration Curve</h3>
+                <span style="font-size: 0.8rem; color: var(--text-sec)">Touch/Click to add points. Drag to move.
+                    Dbl-Click to remove.</span>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="curveCanvas"></canvas>
+            </div>
+
+            <div class="controls"
+                style="display: flex; flex-direction: column; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
+
+                <!-- Row 1: Parameters -->
+                <div style="display: flex; gap: 20px; align-items: center; width: 100%; flex-wrap: wrap;">
+                    <!-- Max Accel -->
+                    <div style="display: flex; align-items: center; flex-shrink: 0;">
+                        <label style="font-size:0.9rem; margin-right: 10px; white-space: nowrap;">Max Accel:</label>
+                        <input type="number" id="maxScaleInput" value="5.0" step="0.5" style="width:60px;">
+                    </div>
+
+                    <!-- Max Raw -->
+                    <div style="display: flex; align-items: center; flex-shrink: 0;">
+                        <label style="font-size:0.9rem; margin-right: 10px; white-space: nowrap;">Max Raw:</label>
+                        <input type="number" id="maxRawInput" value="127" min="20" max="127" style="width:60px;">
+                    </div>
+
+                    <!-- Sensitivity (Flexible Width) -->
+                    <div style="display: flex; align-items: center; gap: 10px; flex-grow: 1; min-width: 300px;">
+                        <label style="font-size:0.9rem; white-space: nowrap;">Global Sensitivity:</label>
+                        <div style="display: flex; align-items: center; gap: 5px; flex-grow: 1;">
+                            <input type="range" id="gainSlider" min="10" max="1280" value="256"
+                                style="flex-grow: 1; width: auto;">
+                            <span id="gainValue" style="min-width: 60px; text-align: right;">1.00x</span>
+                            <button id="btnResetGain"
+                                style="margin-left:5px; font-size:0.9rem; white-space: nowrap; flex-shrink: 0;">Set
+                                1.0x</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Actions -->
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button id="btnFlatten">Preset Linear</button>
+                    <button id="btnSCurve">Preset S-Curve</button>
+                    <button id="btnReset">Reset to FW Defaults</button>
+                </div>
+
+                <!-- Debug Console -->
+                <details style="width: 100%; margin-top: 10px;">
+                    <summary style="cursor: pointer; color: var(--text-sec); font-size: 0.9rem;">Debug Console</summary>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <button id="btnPauseDebug" style="font-size: 0.8rem; padding: 2px 8px;">Pause Log</button>
+                        <button id="btnClearDebug" style="font-size: 0.8rem; padding: 2px 8px;">Clear Log</button>
+                    </div>
+                    <textarea id="debugLog" readonly
+                        style="width: 100%; height: 100px; font-family: monospace; background: #000; color: #0f0; border: 1px solid #333; margin-top: 5px; font-size: 0.8rem;"></textarea>
+                </details>
+
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <div class="gauge-container">
+                <h4>Raw Sensor Speed</h4>
+                <div class="tooltip">Physical movement (0-127)</div>
+                <div class="gauge-bar">
+                    <div id="speedGauge" class="gauge-fill"></div>
+                </div>
+                <div id="speedValue">0</div>
+            </div>
+
+            <div class="gauge-container">
+                <h4>Acceleration Factor</h4>
+                <div class="tooltip">Multiplier at current speed</div>
+                <div id="outScaleValue" style="font-size: 2rem; color: var(--primary); font-weight:bold;">-.--x</div>
+            </div>
+
+            <div style="flex-grow:1; display:flex; flex-direction:column;">
+                <h4>Keymap Config (keymap.c)</h4>
+                <div class="tooltip">Copy this to your keymap.c to make permanent</div>
+                <div id="configOutput" class="code-output">// Connect to generate code</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const USAGE_PAGE = 0xFF60;
+        const USAGE = 0x61;
+        const CMD_SET_CURVE_PT = 0x10;
+        const CMD_SET_CURVE_ALL = 0x11;
+        const CMD_READ_ALL = 0x12;
+        const CMD_GET_SPEED = 0x20;
+
+        const LUT_SIZE = 32;
+        let device = null;
+        let points = [
+            { x: 0, y: 0.4 },
+            { x: 64, y: 1.5 },
+            { x: 127, y: 4.0 }
+        ];
+        let globalGain = 256; // 1.0x (Q8.8)
+        let cursorState = { currentX: 0, targetX: 0 }; // For smoothing visualizer
+        let gestureHistory = []; // For ghost trail
+        let lastGestureTime = 0;
+
+        // State to track if we are connected.
+        // We always show the curve now, but we label it.
+
+        const canvas = document.getElementById('curveCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let draggingPoint = null;
+        let pollingInterval = null;
+
+        // --- Logic ---
+
+        // Monotone Cubic Hermite Interpolation (Fritsch-Carlson)
+        class SplineInterpolator {
+            constructor(inputPoints, maxRaw) {
+                // Sort points by X
+                this.points = inputPoints.map(p => ({ ...p })).sort((a, b) => a.x - b.x);
+                this.maxRaw = maxRaw;
+
+                // Boundary checks
+                if (this.points.length === 0) this.points.push({ x: 0, y: 1 }, { x: maxRaw, y: 1 });
+                if (this.points[0].x > 0) this.points.unshift({ x: 0, y: this.points[0].y });
+
+                // Ensure strictly one point at the end
+                if (this.points[this.points.length - 1].x < maxRaw) {
+                    this.points.push({ x: maxRaw, y: this.points[this.points.length - 1].y });
+                }
+
+                this._computeTangents();
+            }
+
+            _computeTangents() {
+                const n = this.points.length;
+                const m = new Array(n - 1);
+                const dxs = new Array(n - 1);
+                const dys = new Array(n - 1);
+
+                for (let i = 0; i < n - 1; i++) {
+                    dxs[i] = this.points[i + 1].x - this.points[i].x;
+                    dys[i] = this.points[i + 1].y - this.points[i].y;
+                    if (dxs[i] === 0) m[i] = 0;
+                    else m[i] = dys[i] / dxs[i];
+                }
+
+                this.t = new Array(n).fill(0);
+                this.t[0] = m[0];
+                this.t[n - 1] = m[n - 2];
+
+                for (let i = 1; i < n - 1; i++) {
+                    const m_prev = m[i - 1];
+                    const m_next = m[i];
+                    if (m_prev * m_next <= 0) {
+                        this.t[i] = 0;
+                    } else {
+                        const common = (m_prev + m_next) / 2;
+                        const min_secant = Math.min(Math.abs(m_prev), Math.abs(m_next));
+                        if (Math.abs(common) > 3 * min_secant) {
+                            this.t[i] = 3 * min_secant * Math.sign(common);
+                        } else {
+                            this.t[i] = common;
+                        }
+                    }
+                }
+            }
+
+            at(x) {
+                // Clamp x
+                // Note: The original logic clamped sampling to maxRaw effectively for the tail.
+                x = Math.max(0, Math.min(x, this.maxRaw));
+
+                // Find segment
+                // Optimization: could store last index hint if sequential access
+                let i = 0;
+                while (i < this.points.length - 2 && x > this.points[i + 1].x) {
+                    i++;
+                }
+
+                const x0 = this.points[i].x;
+                const x1 = this.points[i + 1].x;
+                const y0 = this.points[i].y;
+                const y1 = this.points[i + 1].y;
+                const m0 = this.t[i];
+                const m1 = this.t[i + 1];
+
+                const h = x1 - x0;
+                if (h === 0) return y0;
+
+                const tVal = (x - x0) / h;
+                const t2 = tVal * tVal;
+                const t3 = tVal * t2;
+
+                const h00 = 2 * t3 - 3 * t2 + 1;
+                const h10 = t3 - 2 * t2 + tVal;
+                const h01 = -2 * t3 + 3 * t2;
+                const h11 = t3 - t2;
+
+                const val = h00 * y0 + h10 * h * m0 + h01 * y1 + h11 * h * m1;
+                return Math.max(val, 0);
+            }
+        }
+
+        // Helper for legacy/firmware LUT generation
+        function solveCurve() {
+            const spline = new SplineInterpolator(points, getMaxRaw());
+            const lut = [];
+            for (let i = 0; i < LUT_SIZE; i++) {
+                lut.push(spline.at(i * 4));
+            }
+            return lut;
+        }
+
+        // --- Canvas ---
+
+        function resize() {
+            const wrapper = canvas.parentElement;
+            const rect = wrapper.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            width = canvas.width;
+            height = canvas.height;
+            draw();
+        }
+        window.addEventListener('resize', resize);
+
+        const MARGIN_L = 40;
+        const MARGIN_B = 50;
+        const MARGIN_T = 20;
+        const MARGIN_R = 30;
+
+        function getMaxScale() {
+            const val = parseFloat(document.getElementById('maxScaleInput').value);
+            return isNaN(val) ? 5.0 : val;
+        }
+
+        function getMaxRaw() {
+            const val = parseInt(document.getElementById('maxRawInput').value);
+            return (isNaN(val) || val < 20) ? 127 : Math.min(val, 127);
+        }
+
+        function toScreen(x, y) {
+            const maxScale = getMaxScale();
+            const maxRaw = getMaxRaw();
+            const sx = MARGIN_L + (x / maxRaw) * (width - MARGIN_L - MARGIN_R);
+            const sy = (height - MARGIN_B) - (y / maxScale) * (height - MARGIN_B - MARGIN_T);
+            return { x: sx, y: sy };
+        }
+
+        function toData(sx, sy) {
+            const maxScale = getMaxScale();
+            const maxRaw = getMaxRaw();
+            const x = ((sx - MARGIN_L) / (width - MARGIN_L - MARGIN_R)) * maxRaw;
+            const y = ((height - MARGIN_B - sy) / (height - MARGIN_B - MARGIN_T)) * maxScale;
+            return { x: Math.min(Math.max(x, 0), maxRaw), y: Math.min(Math.max(y, 0), maxScale) };
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            const maxScale = getMaxScale();
+            const maxRaw = getMaxRaw();
+
+            // -- Grid & Ticks --
+            ctx.strokeStyle = '#444';
+            ctx.fillStyle = '#bbb';
+            ctx.font = '11px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.lineWidth = 1;
+
+            // X Axis
+            // Steps of 10, plus explicit Max Raw
+            const xTickStep = 10;
+            const minLabelDist = 25; // px
+
+            // 1. Draw Max Raw Tick (Priority)
+            const posMax = toScreen(maxRaw, 0);
+            ctx.beginPath();
+            ctx.moveTo(posMax.x, MARGIN_T);
+            ctx.lineTo(posMax.x, height - MARGIN_B);
+            ctx.strokeStyle = '#444';
+            ctx.stroke();
+            ctx.fillText(maxRaw, posMax.x, height - MARGIN_B + 8);
+
+            // 2. Draw stepped ticks
+            for (let i = 0; i < maxRaw; i += xTickStep) {
+                const pos = toScreen(i, 0);
+
+                // Check collision with Max Raw label
+                if (Math.abs(pos.x - posMax.x) < minLabelDist) {
+                    continue;
+                }
+
+                // Major tick
+                ctx.beginPath();
+                ctx.moveTo(pos.x, MARGIN_T);
+                ctx.lineTo(pos.x, height - MARGIN_B);
+                ctx.strokeStyle = '#444';
+                ctx.stroke();
+
+                ctx.fillText(i, pos.x, height - MARGIN_B + 8);
+
+                // Minor tick (i + 5)
+                if (i + 5 < maxRaw) {
+                    const posHalf = toScreen(i + 5, 0);
+                    ctx.beginPath();
+                    ctx.moveTo(posHalf.x, MARGIN_T);
+                    ctx.lineTo(posHalf.x, height - MARGIN_B);
+                    ctx.strokeStyle = '#222';
+                    ctx.stroke();
+                }
+            }
+            // Title X
+            ctx.save(); ctx.fillStyle = '#eee'; ctx.font = '12px sans-serif';
+            ctx.fillText(`Raw Speed (0-${maxRaw})`, MARGIN_L + (width - MARGIN_L - MARGIN_R) / 2, height - 15);
+            ctx.restore();
+
+            // Y Axis
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+
+            // Major steps: integers (0, 1, 2...)
+            // Minor steps: 0.5
+            const steps = Math.floor(maxScale);
+            for (let i = 0; i <= steps; i++) {
+                // Major Line
+                const pos = toScreen(0, i);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.beginPath();
+                ctx.moveTo(MARGIN_L, pos.y);
+                ctx.lineTo(width - MARGIN_R, pos.y);
+                ctx.stroke();
+
+                ctx.fillText(i + '.0x', MARGIN_L - 8, pos.y);
+
+                // Minor Line (i + 0.5)
+                if (i + 0.5 <= maxScale) {
+                    const posHalf = toScreen(0, i + 0.5);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                    ctx.beginPath();
+                    ctx.moveTo(MARGIN_L, posHalf.y);
+                    ctx.lineTo(width - MARGIN_R, posHalf.y);
+                    ctx.stroke();
+                }
+            }
+
+            // -- Curve --
+            ctx.strokeStyle = '#bb86fc';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            const spline = new SplineInterpolator(points, maxRaw);
+
+            // Draw curve with fine resolution
+            const step = 2; // px per step (or raw units)
+            let started = false;
+
+            for (let lx = 0; lx <= maxRaw; lx += step) {
+                const ly = spline.at(lx);
+                const pos = toScreen(lx, ly);
+                if (!started) {
+                    ctx.moveTo(pos.x, pos.y);
+                    started = true;
+                } else {
+                    ctx.lineTo(pos.x, pos.y);
+                }
+            }
+            // Ensure end point is drawn
+            const endY = spline.at(maxRaw);
+            const endPos = toScreen(maxRaw, endY);
+            ctx.lineTo(endPos.x, endPos.y);
+
+            ctx.stroke();
+
+            // -- Control Points --
+            ctx.fillStyle = '#fff';
+            points.forEach(p => {
+                // Only draw if within bounds (points are kept in data space, so should be fine)
+                // But if we reduced MaxRaw, some points might be > maxRaw.
+                // We should probably clamp them or hide them?
+                // For now, let's clamp VISUALLY or just not draw.
+                // Wait, if they are > MaxRaw, they are off screen.
+                // Better: Clamp the points in data array when MaxRaw changes (in the listener).
+                const pos = toScreen(p.x, p.y);
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            updateConfigOutput(solveCurve());
+
+            // -- Visualize LUT Points --
+            const visualLut = solveCurve();
+            ctx.strokeStyle = '#ddd'; // Brighter Gray
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < visualLut.length; i++) {
+                const lx = i * 4;
+                const ly = visualLut[i];
+                if (lx > maxRaw) continue;
+
+                const pos = toScreen(lx, ly);
+                const size = 3;
+
+                ctx.beginPath();
+                ctx.moveTo(pos.x - size, pos.y - size);
+                ctx.lineTo(pos.x + size, pos.y + size);
+                ctx.moveTo(pos.x + size, pos.y - size);
+                ctx.lineTo(pos.x - size, pos.y + size);
+                ctx.stroke();
+            }
+
+            // -- Ghost Trail --
+            if (gestureHistory.length > 0) {
+                for (let j = 0; j < gestureHistory.length; j++) {
+                    const rawX = gestureHistory[j];
+                    if (rawX > maxRaw) continue;
+
+                    // Gradient: Oldest (j=0) -> Newest (j=len-1)
+                    // Alpha range: 0.3 (faint) to 0.9 (bright)
+                    const progress = j / Math.max(gestureHistory.length - 1, 1);
+                    const alpha = 0.3 + (0.6 * progress);
+                    ctx.fillStyle = `rgba(200, 200, 200, ${alpha.toFixed(2)})`;
+
+                    const i1 = Math.floor(rawX / 4);
+                    let y = 0;
+                    if (i1 >= 31) {
+                        y = visualLut[31];
+                    } else {
+                        const y1 = visualLut[i1];
+                        const y2 = visualLut[i1 + 1];
+                        const t = (rawX - (i1 * 4)) / 4.0;
+                        y = y1 + (y2 - y1) * t;
+                    }
+                    const pos = toScreen(rawX, y);
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // -- Real-time Cursor --
+            if (cursorState.currentX > 0.1) {
+                const rawX = cursorState.currentX;
+                // Linear interpolation using LUT
+                const i1 = Math.floor(rawX / 4);
+                let y = 0;
+                // visualLut guaranteed to be size 32
+                if (i1 >= 31) {
+                    y = visualLut[31];
+                } else {
+                    const y1 = visualLut[i1];
+                    const y2 = visualLut[i1 + 1];
+                    const t = (rawX - (i1 * 4)) / 4.0;
+                    y = y1 + (y2 - y1) * t;
+                }
+
+                const pos = toScreen(rawX, y);
+                const posXAxis = toScreen(rawX, 0);
+                const posYAxis = toScreen(0, y);
+
+                ctx.save();
+                ctx.strokeStyle = '#aaa';
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 1;
+
+                // Vertical Line
+                ctx.beginPath();
+                ctx.moveTo(posXAxis.x, posXAxis.y - (height - MARGIN_B - MARGIN_T)); // Top of graph roughly? No
+                // Draw from X Axis up to curve
+                ctx.moveTo(posXAxis.x, posXAxis.y);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+
+                // Horizontal Line
+                ctx.beginPath();
+                ctx.moveTo(MARGIN_L, pos.y); // From Y axis
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+
+                ctx.restore();
+
+                // Intersection Dot
+                ctx.fillStyle = '#aaa';
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // -- Tooltip --
+            if (hoveredLutIndex !== -1 && hoveredLutIndex < visualLut.length) {
+                const lx = hoveredLutIndex * 4;
+                const ly = visualLut[hoveredLutIndex];
+                const pos = toScreen(lx, ly);
+
+                const lutVal = Math.round(ly * 256); // Raw value for FW
+                const lines = [
+                    `Idx ${hoveredLutIndex} of 31`,
+                    `Value ${lutVal}`
+                ];
+
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+
+                // Measure box
+                let maxWidth = 0;
+                lines.forEach(l => {
+                    const w = ctx.measureText(l).width;
+                    if (w > maxWidth) maxWidth = w;
+                });
+
+                const pad = 6;
+                const boxW = maxWidth + pad * 2;
+                const boxH = lines.length * 15 + pad * 2;
+
+                // Offset tooltip so it doesn't cover point
+                const boxX = pos.x + 10;
+                const boxY = pos.y - 10 - boxH; // Above right
+
+                // Keep tooltip on screen
+                const rectX = boxX < MARGIN_L ? MARGIN_L : (boxX + boxW > width - MARGIN_R ? width - MARGIN_R - boxW : boxX);
+                const rectY = boxY < MARGIN_T ? MARGIN_T : boxY;
+
+                // Background
+                ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 1;
+                ctx.fillRect(rectX, rectY, boxW, boxH);
+                ctx.strokeRect(rectX, rectY, boxW, boxH);
+
+                // Text
+                ctx.fillStyle = '#fff';
+                lines.forEach((l, i) => {
+                    ctx.fillText(l, rectX + pad, rectY + pad + i * 15);
+                });
+            }
+
+        }
+
+        function updateConfigOutput(lut) {
+            const fixedLut = lut.map(v => Math.round(v * 256));
+            const maxLimit = Math.round(getMaxScale() * 256);
+
+            let cCode = `// Put this in your keymap.c\n`;
+            cCode += `const keyball_accel_t accel_conf = {\n`;
+            cCode += `  .lut = {\n    `;
+            fixedLut.forEach((v, i) => {
+                cCode += `${v},${(i + 1) % 8 === 0 ? '\n    ' : ' '}`;
+            });
+            cCode += `\n  },\n`;
+            cCode += `  .max_speed_limit = ${maxLimit}, // Safety Cap\n`;
+            cCode += `  .global_gain = ${globalGain},   // ${(globalGain / 256).toFixed(2)}x Sensitivity\n`;
+            cCode += `  .algo_version = 1,\n`;
+            cCode += `  .num_points = ${points.length},\n`;
+            cCode += `  .points = { `;
+            points.forEach((p, i) => {
+                cCode += `{${Math.round(p.x * 256)}, ${Math.round(p.y * 256)}}`;
+                if (i < points.length - 1) cCode += `, `;
+            });
+            cCode += ` }\n`;
+            cCode += `};\n\n`;
+            cCode += `// Usage: keyball_set_acceleration_data(&accel_conf);`;
+            document.getElementById('configOutput').innerText = cCode;
+        }
+
+        // --- Interaction ---
+
+        function enforceMonotonicPush(idx) {
+            // "Push" logic:
+            // If points[idx] moves up, and exceeds points[idx+1], move points[idx+1] up.
+            // If points[idx] moves down, and falls below points[idx-1], move points[idx-1] down.
+
+            const p = points[idx];
+
+            // Forward pass (Push Up)
+            for (let i = idx + 1; i < points.length; i++) {
+                if (points[i].y < points[i - 1].y) {
+                    points[i].y = points[i - 1].y;
+                }
+            }
+
+            // Backward pass (Push Down)
+            for (let i = idx - 1; i >= 0; i--) {
+                if (points[i].y > points[i + 1].y) {
+                    points[i].y = points[i + 1].y;
+                }
+            }
+        }
+
+        canvas.addEventListener('mousedown', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i];
+                const pos = toScreen(p.x, p.y);
+                if (Math.sqrt((pos.x - mx) ** 2 + (pos.y - my) ** 2) < 10) {
+                    draggingPoint = { point: p, index: i };
+                    return;
+                }
+            }
+
+            // Add new point
+            const dataVal = toData(mx, my);
+            const maxRaw = getMaxRaw(); // Use current maxRaw for new point clamping
+            if (dataVal.x > 0 && dataVal.x < maxRaw) { // Clamp to maxRaw
+                points.push(dataVal);
+                // Sort to find index
+                points.sort((a, b) => a.x - b.x);
+                const idx = points.indexOf(dataVal);
+                enforceMonotonicPush(idx); // Initial check
+                draggingPoint = { point: dataVal, index: idx };
+                draw(); sendCurveChunked();
+            }
+        });
+
+        let hoveredLutIndex = -1;
+
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            // If dragging, handle drag and return
+            if (draggingPoint) {
+                const dataVal = toData(mx, my);
+                const p = draggingPoint.point;
+                const maxRaw = getMaxRaw();
+
+                // Lock X for first/last
+                if (draggingPoint.index === 0) dataVal.x = 0;
+                else if (draggingPoint.index === points.length - 1) dataVal.x = maxRaw;
+
+                p.x = dataVal.x;
+                p.y = dataVal.y;
+
+                // Clamp X to neighbors
+                if (draggingPoint.index > 0) {
+                    if (p.x < points[draggingPoint.index - 1].x + 1) p.x = points[draggingPoint.index - 1].x + 1;
+                }
+                if (draggingPoint.index < points.length - 1) {
+                    if (p.x > points[draggingPoint.index + 1].x - 1) p.x = points[draggingPoint.index + 1].x - 1;
+                }
+
+                // Clamp X to maxRaw
+                p.x = Math.min(Math.max(p.x, 0), maxRaw);
+
+                enforceMonotonicPush(draggingPoint.index);
+
+                draw();
+                sendCurveChunked();
+                return;
+            }
+
+            // Not dragging: Check for LUT hover
+            const maxRaw = getMaxRaw();
+            const lut = solveCurve();
+            let foundLutIndex = -1;
+
+            for (let i = 0; i < lut.length; i++) {
+                const lx = i * 4;
+                if (lx > maxRaw) continue; // Off screen/graph
+                const ly = lut[i];
+                const pos = toScreen(lx, ly);
+
+                // Hover radius 6px
+                if (Math.sqrt((pos.x - mx) ** 2 + (pos.y - my) ** 2) < 8) {
+                    foundLutIndex = i;
+                    break;
+                }
+            }
+
+            if (foundLutIndex !== hoveredLutIndex) {
+                hoveredLutIndex = foundLutIndex;
+                draw(); // Redraw cursor/tooltip
+            }
+
+            // Cursor pointer if hovering point (control or LUT)
+            // Existing logic checked control points? Not really, just drag logic.
+            // Let's keep it simple.
+            canvas.style.cursor = (hoveredLutIndex !== -1) ? 'pointer' : 'crosshair';
+
+            // Check control point hover for cursor (existing dragging logic usually handles this on mousedown)
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i];
+                const pos = toScreen(p.x, p.y);
+                if (Math.sqrt((pos.x - mx) ** 2 + (pos.y - my) ** 2) < 10) {
+                    canvas.style.cursor = 'move';
+                    break;
+                }
+            }
+
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            draggingPoint = null;
+        });
+
+        // ... (dblclick, other buttons) ...
+        canvas.addEventListener('dblclick', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i];
+                const pos = toScreen(p.x, p.y);
+                if (Math.sqrt((pos.x - mx) ** 2 + (pos.y - my) ** 2) < 10) {
+                    // Don't remove first/last
+                    if (i === 0 || i === points.length - 1) return;
+                    points.splice(i, 1);
+                    draw(); sendCurveChunked();
+                    return;
+                }
+            }
+        });
+
+        // --- Controls ---
+
+        document.getElementById('gainSlider').addEventListener('input', e => {
+            globalGain = parseInt(e.target.value);
+            document.getElementById('gainValue').innerText = (globalGain / 256).toFixed(2) + 'x';
+            sendCurveChunked();
+            updateConfigOutput(solveCurve()); // update code
+        });
+
+        document.getElementById('btnResetGain').addEventListener('click', () => {
+            globalGain = 256;
+            document.getElementById('gainSlider').value = 256;
+            document.getElementById('gainValue').innerText = '1.00x';
+            sendCurveChunked();
+            updateConfigOutput(solveCurve());
+        });
+
+        document.getElementById('maxScaleInput').addEventListener('change', () => {
+            draw();
+            updateConfigOutput(solveCurve()); // update max limit cap
+        });
+
+        // Helper to sanitize points when Max Raw changes
+        function validateAndFixPoints(newMaxRaw) {
+            // 1. Clamp X to new max
+            points.forEach(p => {
+                p.x = Math.min(Math.max(p.x, 0), newMaxRaw);
+            });
+
+            // 2. Sort
+            points.sort((a, b) => a.x - b.x);
+
+            // 3. Deduplicate / Merge Collisions at the edge
+            // If multiple points are at newMaxRaw, keep only the last one (the end anchor)
+            // Iterate backwards
+            for (let i = points.length - 2; i >= 0; i--) {
+                if (points[i].x === points[i + 1].x) {
+                    // Collision detected. Remove the earlier one (i), keep the later one (i+1)
+                    points.splice(i, 1);
+                }
+            }
+
+            // Ensure strictly monotonic X for spline (sanity check)
+            for (let i = 0; i < points.length - 1; i++) {
+                if (points[i].x >= points[i + 1].x) {
+                    // Should be handled above, but just in case, spacing them out would be better?
+                    // Deduplication above handles equality.
+                }
+            }
+        }
+
+        document.getElementById('maxRawInput').addEventListener('change', (e) => {
+            const maxRaw = getMaxRaw();
+            // Sync UI value to clamped value
+            e.target.value = maxRaw;
+
+            // Force last point to new edge before validation?
+            // If we are expanding, we want the last point to jump to maxRaw.
+            // If we are shrinking, clamping handles it.
+
+            // Heuristic: If the last point was at the OLD max, move it to the NEW max.
+            // But we don't know the old max easily without storing it.
+            // The previous "Snap" fix logic (always move last point) was good for expanding.
+
+            if (points.length > 0) {
+                points[points.length - 1].x = maxRaw;
+            }
+
+            validateAndFixPoints(maxRaw);
+
+            draw();
+            sendCurveChunked();
+        });
+
+        document.getElementById('btnFlatten').addEventListener('click', () => {
+            const maxRaw = getMaxRaw();
+            points = [{ x: 0, y: 1.0 }, { x: maxRaw, y: 1.0 }];
+            draw(); sendCurveChunked();
+        });
+
+        document.getElementById('btnSCurve').addEventListener('click', () => {
+            const maxRaw = getMaxRaw();
+            // Scale preset points (0, 30, 60, 127) to (0...maxRaw)
+            const scale = maxRaw / 127.0;
+            points = [
+                { x: 0, y: 0.2 },
+                { x: Math.round(30 * scale), y: 0.5 },
+                { x: Math.round(60 * scale), y: 2.5 },
+                { x: Math.round(127 * scale), y: 5.0 } // ends at maxRaw
+            ];
+            // Ensure integer unique x
+            validateAndFixPoints(maxRaw);
+            draw(); sendCurveChunked();
+        });
+
+        document.getElementById('btnReset').addEventListener('click', async () => {
+            if (device && device.opened) {
+                // Reload from device
+                await readConfigFromDevice();
+                logDebug("Requesting reload from firmware...");
+            } else {
+                // Offline fallback
+                const maxRaw = getMaxRaw();
+                const scale = maxRaw / 127.0;
+                points = [
+                    { x: 0, y: 0.4 },
+                    { x: Math.round(64 * scale), y: 1.5 },
+                    { x: Math.round(127 * scale), y: 4.0 }
+                ];
+                globalGain = 256;
+                document.getElementById('gainSlider').value = 256;
+                document.getElementById('gainValue').innerText = "1.00x";
+                validateAndFixPoints(maxRaw);
+                draw();
+            }
+        });
+
+        // ... (connect logic) ...
+        document.getElementById('btnConnect').addEventListener('click', async () => {
+            if (device) {
+                await device.close();
+                device = null;
+                document.body.classList.remove('connected');
+                document.getElementById('btnConnect').innerText = 'Connect';
+                if (pollingInterval) clearInterval(pollingInterval);
+                return;
+            }
+
+            try {
+                const devices = await navigator.hid.requestDevice({
+                    filters: [{ usagePage: USAGE_PAGE, usage: USAGE }]
+                });
+
+                if (devices.length > 0) {
+                    device = devices[0];
+                    await device.open();
+                    document.body.classList.add('connected');
+                    document.getElementById('btnConnect').innerText = 'Disconnect';
+
+                    device.addEventListener('inputreport', handleInputReport);
+
+                    // Sync on connect: Read from device
+                    await readConfigFromDevice();
+
+                    startPolling();
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Failed to connect: " + err.message);
+            }
+        });
+
+        async function readConfigFromDevice() {
+            const report = new Uint8Array(32);
+            report[0] = CMD_READ_ALL;
+            report[1] = 0;
+            await device.sendReport(0, report);
+        }
+
+        // --- HID ---
+
+        let shouldLog = true;
+
+        document.getElementById('btnClearDebug').addEventListener('click', () => {
+            document.getElementById('debugLog').value = '';
+        });
+
+        document.getElementById('btnPauseDebug').addEventListener('click', (e) => {
+            shouldLog = !shouldLog;
+            e.target.innerText = shouldLog ? "Pause Log" : "Resume Log";
+        });
+
+        function logDebug(msg) {
+            if (!shouldLog) return;
+            const el = document.getElementById('debugLog');
+            if (!el) return;
+            const time = new Date().toLocaleTimeString();
+            el.value = `[${time}] ${msg}\n` + el.value.slice(0, 1000);
+        }
+
+        async function requestRead(offset) {
+            const report = new Uint8Array(32);
+            report[0] = CMD_READ_ALL;
+            report[1] = offset;
+            await device.sendReport(0, report);
+        }
+
+        let incomingLut = new Array(32).fill(0);
+
+        async function handleInputReport(e) {
+            const data = new Uint8Array(e.data.buffer);
+            const cmd = data[0];
+
+            // Log raw packet (first 4 bytes for brevity)
+            logDebug(`RX Cmd:0x${cmd.toString(16).toUpperCase()} Data:${data[1]} ${data[2]} ${data[3]}`);
+
+            if (cmd === CMD_GET_SPEED) {
+                const speed = (data[1] << 8) | data[2];
+                updateVisualizer(speed);
+            }
+            else if (cmd === CMD_READ_ALL) {
+                const offset = data[1];
+
+                if (offset === 0) {
+                    // Metadata
+                    const max_limit = (data[2] << 8) | data[3];
+                    globalGain = (data[4] << 8) | data[5];
+                    const algoVer = data[6];
+                    const numPoints = data[7];
+
+                    if (globalGain === 0) globalGain = 256;
+
+                    document.getElementById('gainSlider').value = globalGain;
+                    document.getElementById('gainValue').innerText = (globalGain / 256).toFixed(2) + 'x';
+                    logDebug(`Sync: Gain=${globalGain / 256}x Max=${max_limit} Ver=${algoVer} Pts=${numPoints}`);
+
+                    // Prepare for reading
+                    incomingLut = new Array(32).fill(0);
+                    incomingPoints = [];
+                    incomingAlgoVer = algoVer;
+                    incomingNumPoints = numPoints;
+
+                    await requestRead(1);
+                }
+                else if (offset >= 4) {
+                    // Points chunks (Offset 4: 0-6, Offset 5: 7-13)
+                    const count = data[2];
+                    const startIdx = (offset - 4) * 7;
+                    let ptr = 3;
+                    for (let i = 0; i < count; i++) {
+                        const x = (data[ptr++] << 8) | data[ptr++];
+                        const y = (data[ptr++] << 8) | data[ptr++];
+                        incomingPoints.push({ x: x / 256.0, y: y / 256.0 });
+                    }
+                    // Next chunk logic (7 points/chunk)
+                    if (offset === 4 && incomingNumPoints > 7) {
+                        await requestRead(5);
+                    } else if (offset === 5 && incomingNumPoints > 14) {
+                        await requestRead(6);
+                    } else {
+                        finalizeImport();
+                    }
+                }
+                else {
+                    // LUT Chunk (1-3)
+                    const count = data[2];
+                    const startIdx = (offset - 1) * 14;
+                    let ptr = 3;
+                    for (let i = 0; i < count; i++) {
+                        if (startIdx + i < 32) {
+                            const val = (data[ptr] << 8) | data[ptr + 1];
+                            incomingLut[startIdx + i] = val / 256.0;
+                        }
+                        ptr += 2;
+                    }
+
+                    if (offset < 3) {
+                        await requestRead(offset + 1);
+                    } else {
+                        // LUT Done. Now read points if available.
+                        // If Algo check passes or if we just want to try reading points?
+                        // Let's always read points if numPoints > 0.
+                        if (incomingNumPoints > 0) {
+                            await requestRead(4);
+                        } else {
+                            finalizeImport();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Globals for sync
+        let incomingPoints = [];
+        let incomingAlgoVer = 0;
+        let incomingNumPoints = 0;
+
+        function finalizeImport() {
+            logDebug("Sync: Read Complete");
+
+            // 1. Auto-Scale Y-Axis
+            let maxVal = 0;
+            for (let v of incomingLut) if (v > maxVal) maxVal = v;
+            const recommendedScale = Math.ceil(maxVal);
+            if (recommendedScale > 0) {
+                document.getElementById('maxScaleInput').value = recommendedScale.toFixed(1);
+            }
+
+            // 2. Auto-Scale X-Axis (Tail Detection from LUT)
+            let lastActiveIdx = 31;
+            while (lastActiveIdx > 0) {
+                if (Math.abs(incomingLut[lastActiveIdx] - incomingLut[lastActiveIdx - 1]) > 0.01) break;
+                lastActiveIdx--;
+            }
+            let rawX = lastActiveIdx * 4;
+
+            // If we have points, check their max X too
+            if (incomingPoints.length > 0) {
+                const pMax = incomingPoints[incomingPoints.length - 1].x;
+                if (pMax > rawX) rawX = pMax;
+            }
+
+            let recommendedRaw = Math.ceil((rawX + 4) / 10) * 10;
+            if (recommendedRaw > 127) recommendedRaw = 127;
+            if (recommendedRaw < 20) recommendedRaw = 20;
+
+            document.getElementById('maxRawInput').value = recommendedRaw;
+
+            // 3. Import Curve
+            // If version matches and we have points, use them.
+            if (incomingAlgoVer === 1 && incomingPoints.length > 0) {
+                logDebug(`Using ${incomingPoints.length} persisted points.`);
+                points = incomingPoints;
+                // Sanity clamp to new maxRaw just in case
+                validateAndFixPoints(recommendedRaw);
+            } else {
+                if (incomingAlgoVer !== 1 && incomingNumPoints > 0) {
+                    logDebug("Algo mismatch (Ver " + incomingAlgoVer + "), falling back to RDP.");
+                }
+                importLutToPoints(incomingLut, lastActiveIdx);
+            }
+            draw();
+            updateConfigOutput(solveCurve());
+        }
+
+        function importLutToPoints(lut) {
+            // Adaptive sampling using Ramer-Douglas-Peucker (RDP)
+            const lastActiveIdx = arguments[1] || 31;
+            const maxRaw = getMaxRaw();
+
+            // Build full list of coordinates (up to lastActiveIdx + 1 to capture knee)
+            const sourcePoints = [];
+            const limit = Math.min(lastActiveIdx + 1, 31);
+
+            for (let i = 0; i <= limit; i++) {
+                sourcePoints.push({ x: i * 4, y: lut[i] });
+            }
+            // Add final point explicitly if graph extends further
+            if (sourcePoints[sourcePoints.length - 1].x < maxRaw) {
+                sourcePoints.push({ x: maxRaw, y: lut[limit] });
+            } else if (sourcePoints[sourcePoints.length - 1].x > maxRaw) {
+                sourcePoints[sourcePoints.length - 1].x = maxRaw;
+            }
+
+            // RDP Algorithm
+            function rdp(pts, epsilon) {
+                if (pts.length < 3) return pts;
+                let dmax = 0;
+                let index = 0;
+                const end = pts.length - 1;
+                for (let i = 1; i < end; i++) {
+                    const d = perpendicularDistance(pts[i], pts[0], pts[end]);
+                    if (d > dmax) {
+                        index = i;
+                        dmax = d;
+                    }
+                }
+                if (dmax > epsilon) {
+                    const res1 = rdp(pts.slice(0, index + 1), epsilon);
+                    const res2 = rdp(pts.slice(index), epsilon);
+                    return res1.slice(0, res1.length - 1).concat(res2);
+                } else {
+                    return [pts[0], pts[end]];
+                }
+            }
+
+            function perpendicularDistance(p, lineStart, lineEnd) {
+                const dx = lineEnd.x - lineStart.x;
+                const dy = lineEnd.y - lineStart.y;
+                if (dx === 0 && dy === 0) {
+                    return Math.hypot(p.x - lineStart.x, p.y - lineStart.y);
+                }
+                const num = Math.abs(dy * p.x - dx * p.y + lineEnd.x * lineStart.y - lineEnd.y * lineStart.x);
+                const den = Math.hypot(dx, dy);
+                return num / den;
+            }
+
+            // Epsilon 0.05 seems good for Y-scale deviations
+            points = rdp(sourcePoints, 0.05);
+
+            // Safety cleanup
+            points = points.filter(p => p.x <= maxRaw);
+            // Ensure first is 0
+            if (points.length > 0 && points[0].x !== 0) {
+                points.unshift({ x: 0, y: points[0].y });
+            }
+            // Ensure last is maxRaw
+            if (points.length > 0 && points[points.length - 1].x !== maxRaw) {
+                if (maxRaw - points[points.length - 1].x > 1) {
+                    points.push({ x: maxRaw, y: points[points.length - 1].y });
+                }
+            }
+        }
+
+        function updateVisualizer(speed) {
+            const gauge = document.getElementById('speedGauge');
+            const val = document.getElementById('speedValue');
+            const pct = Math.min((speed / 127) * 100, 100);
+            gauge.style.width = pct + '%';
+            val.innerText = speed;
+
+            // Update smooth cursor target
+            cursorState.targetX = speed;
+
+            // Ghost Trail Logic
+            if (speed > 0) {
+                const now = Date.now();
+                if (now - lastGestureTime > 500) {
+                    gestureHistory = []; // New gesture
+                }
+                gestureHistory.push(speed);
+                lastGestureTime = now;
+            }
+
+            // Text values update instantly for responsiveness
+            const lut = solveCurve();
+            // Calculate Y based on linear interpolation (same as FW)
+            // Indices are every 4 raw steps
+            const i1 = Math.floor(speed / 4);
+            const i2 = i1 + 1;
+            let y = 0;
+            if (i1 >= LUT_SIZE - 1) {
+                y = lut[LUT_SIZE - 1];
+            } else {
+                const y1 = lut[i1];
+                const y2 = lut[i1 < LUT_SIZE - 1 ? i1 + 1 : i1]; // robust check
+                const t = (speed - (i1 * 4)) / 4.0;
+                y = y1 + (y2 - y1) * t;
+            }
+
+            const finalScale = y * (globalGain / 256);
+            document.getElementById('outScaleValue').innerText = finalScale.toFixed(2) + "x";
+            // Note: draw() is called by animation loop now
+        }
+
+        function animateCursor() {
+            // Smooth lerp
+            const diff = cursorState.targetX - cursorState.currentX;
+            if (Math.abs(diff) > 0.05) {
+                cursorState.currentX += diff * 0.2; // 20% smoothing factor
+                draw();
+            } else if (Math.abs(cursorState.currentX) > 0.05 && cursorState.targetX === 0) {
+                // Ensure it goes to absolute zero
+                cursorState.currentX = 0;
+                draw();
+            }
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor(); // Start loop
+
+        async function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(async () => {
+                if (!device || !device.opened) return;
+                try {
+                    const report = new Uint8Array(32);
+                    report[0] = CMD_GET_SPEED;
+                    await device.sendReport(0, report);
+                } catch (err) {
+                    console.error("Polling error:", err);
+                    logDebug("Polling Error: " + err.message);
+                }
+            }, 100);
+        }
+
+        async function sendCurveChunked() {
+            if (!device || !device.opened) return;
+
+            const lut = solveCurve();
+            const fixedLut = lut.map(v => Math.floor(v * 256));
+            const maxLimit = Math.round(getMaxScale() * 256);
+
+            // Send LUT chunks
+            const CHUNK_SIZE = 14;
+            for (let i = 0; i < LUT_SIZE; i += CHUNK_SIZE) {
+                const count = Math.min(CHUNK_SIZE, LUT_SIZE - i);
+                const report = new Uint8Array(32);
+                report[0] = CMD_SET_CURVE_ALL;
+                report[1] = i;
+                report[2] = count;
+                let offset = 3;
+                for (let j = 0; j < count; j++) {
+                    const val = fixedLut[i + j];
+                    report[offset++] = (val >> 8) & 0xFF;
+                    report[offset++] = val & 0xFF;
+                }
+                await device.sendReport(0, report);
+            }
+
+            // Send Metadata (Gain + Max, via PT 0 hack or update FW)
+            const report = new Uint8Array(32);
+            report[0] = CMD_SET_CURVE_PT;
+            report[1] = 0;
+            report[2] = (fixedLut[0] >> 8) & 0xFF;
+            report[3] = fixedLut[0] & 0xFF;
+            report[4] = (maxLimit >> 8) & 0xFF;
+            report[5] = maxLimit & 0xFF;
+            report[6] = (globalGain >> 8) & 0xFF;
+            report[7] = globalGain & 0xFF;
+
+            await device.sendReport(0, report);
+
+            // Send CMD_SET_POINTS (0x13) to persist editing state in RAM
+            // Chunked 7 points per packet (4 bytes per point)
+            const pts = points.map(p => ({ x: Math.round(p.x * 256), y: Math.round(p.y * 256) }));
+            const CHUNK_PTS = 7;
+            for (let i = 0; i < pts.length; i += CHUNK_PTS) {
+                const count = Math.min(CHUNK_PTS, pts.length - i);
+                const r = new Uint8Array(32);
+                r[0] = 0x13; // CMD_SET_POINTS
+                r[1] = i;    // Start Index
+                r[2] = count;
+                r[3] = 1;    // Algo Version (1)
+                let off = 4;
+                for (let j = 0; j < count; j++) {
+                    const x = pts[i + j].x;
+                    r[off++] = (x >> 8) & 0xFF;
+                    r[off++] = x & 0xFF;
+                    const y = pts[i + j].y;
+                    r[off++] = (y >> 8) & 0xFF;
+                    r[off++] = y & 0xFF;
+                }
+                await device.sendReport(0, r);
+            }
+        }
+
+        // Init
+        setTimeout(resize, 100);
+    </script>
+</body>
+
+</html>

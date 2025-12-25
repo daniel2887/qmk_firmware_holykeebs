@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "drivers/sensors/pmw33xx_common.h"
 
 #include <string.h>
+#include "raw_hid.h"
 
 const uint16_t CPI_DEFAULT    = KEYBALL_CPI_DEFAULT;
 // Anything above this value makes the cursor fly across the screen.
@@ -53,6 +54,18 @@ keyball_t keyball = {
 
     .pressing_keys = { BL, BL, BL, BL, BL, BL, 0 },
 };
+
+// Acceleration Tuning Globals
+static keyball_accel_t kb_accel = ACCEL_LUT_DEFAULT;
+static uint16_t kb_last_speed = 0;
+
+void keyball_set_acceleration_data(const keyball_accel_t *data) {
+    kb_accel = *data;
+}
+
+uint16_t keyball_get_last_speed(void) {
+    return kb_last_speed;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 // Hook points
@@ -225,19 +238,47 @@ static uint16_t isqrt16(uint16_t n) {
 }
 
 static void apply_acceleration(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
-    // Fixed point constants (Q8.8)
-    const int32_t BASE = (int32_t)(KEYBALL_ACCEL_BASE * 256.0f);
-    const int32_t FACTOR = (int32_t)(KEYBALL_ACCEL_FACTOR * 256.0f);
-#ifdef KEYBALL_ACCEL_MAX
-    const int32_t MAX_SCALE = (int32_t)(KEYBALL_ACCEL_MAX * 256.0f);
-#endif
-
     uint16_t speed = isqrt16((int16_t)dx * dx + (int16_t)dy * dy);
-    int32_t scale = BASE + (speed * FACTOR);
+    if (speed > kb_last_speed) {
+        kb_last_speed = speed;
+    }
 
-#ifdef KEYBALL_ACCEL_MAX
-    if (scale > MAX_SCALE) scale = MAX_SCALE;
-#endif
+    int32_t scale;
+
+    // Map speed (0..127+) to LUT index (0..31)
+    // We use 0..127 as the input range for the LUT.
+    // Index = speed / 4.
+    uint8_t index = speed >> 2;
+    if (index >= ACCEL_LUT_SIZE - 1) {
+        index = ACCEL_LUT_SIZE - 2;
+    }
+
+    // Linear Interpolation
+    // remainder is the lower 2 bits of speed
+    uint16_t y1 = kb_accel.lut[index];
+    uint16_t y2 = kb_accel.lut[index+1];
+    uint8_t rem = speed & 3; // 0..3
+
+    // y = y1 + (y2 - y1) * rem / 4
+    // Fixed point 8.8
+    scale = y1 + (((int32_t)(y2 - y1) * rem) >> 2);
+
+    // Apply Global Gain (Q8.8)
+    // scale = scale * gain / 256
+    if (kb_accel.global_gain > 0) {
+        scale = (scale * kb_accel.global_gain) >> 8;
+    } else {
+        // Fallback if gain is 0 (shouldn't happen with default, but safety)
+        // Treat 0 as 1.0x to avoid stuck cursor
+        if (kb_accel.global_gain == 0) {
+             // Do nothing (keep scale)
+        }
+    }
+
+    // Safety clamp from tuner
+    if (kb_accel.max_speed_limit > 0) {
+        if (scale > kb_accel.max_speed_limit) scale = kb_accel.max_speed_limit;
+    }
 
     int32_t sx = (int32_t)dx * scale + accum->remainder_x;
     int32_t sy = (int32_t)dy * scale + accum->remainder_y;
@@ -483,6 +524,136 @@ void keyball_oled_render_layerinfo(void) {
     oled_write_P(PSTR("\xC2\xC3\xB4\xB5 ---"), false);
 #    endif
 #endif
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// RawHID
+
+// Command IDs
+enum {
+    CMD_SET_CURVE_PT = 0x10,
+    CMD_SET_CURVE_ALL = 0x11,
+    CMD_READ_ALL = 0x12,
+    CMD_GET_SPEED = 0x20
+};
+
+void raw_hid_receive(uint8_t *data, uint8_t length) {
+    uint8_t cmd = data[0];
+
+    if (cmd == CMD_SET_CURVE_PT) {
+        // [CMD, INDEX, VAL_H, VAL_L, MAX_H, MAX_L]
+        uint8_t idx = data[1];
+        if (idx < ACCEL_LUT_SIZE) {
+            uint16_t val = (data[2] << 8) | data[3];
+            kb_accel.lut[idx] = val;
+        }
+        uint16_t max_limit = (data[4] << 8) | data[5];
+        kb_accel.max_speed_limit = max_limit;
+
+        // Extended capability: Gain at index 6,7
+        if (length > 7) {
+             uint16_t gain = (data[6] << 8) | data[7];
+             if (gain > 0) kb_accel.global_gain = gain;
+        }
+    }
+    else if (cmd == CMD_SET_CURVE_ALL) {
+        // [CMD, START_IDX, COUNT, VAL0_H, VAL0_L, VAL1_H, VAL1_L, ...]
+        uint8_t start_idx = data[1];
+        uint8_t count = data[2];
+        uint8_t offset = 3;
+
+        for (uint8_t i = 0; i < count; i++) {
+            if (start_idx + i < ACCEL_LUT_SIZE && offset + 1 < length) {
+                uint16_t val = (data[offset] << 8) | data[offset+1];
+                kb_accel.lut[start_idx + i] = val;
+                offset += 2;
+            }
+        }
+    }
+    else if (cmd == CMD_READ_ALL) {
+        // [CMD, OFFSET]
+        // Offset 0: Metadata [CMD, MAX_H, MAX_L, GAIN_H, GA_L]
+        // Offset 1+: LUT Chunks
+        uint8_t offset = data[1];
+        uint8_t report[32];
+        memset(report, 0, 32);
+        report[0] = CMD_READ_ALL;
+
+        if (offset == 0) {
+            report[1] = 0; // echoed offset
+            report[2] = (kb_accel.max_speed_limit >> 8) & 0xFF;
+            report[3] = kb_accel.max_speed_limit & 0xFF;
+            report[4] = (kb_accel.global_gain >> 8) & 0xFF;
+            report[5] = kb_accel.global_gain & 0xFF;
+            report[6] = kb_accel.algo_version;
+            report[7] = kb_accel.num_points;
+        } else if (offset >= 4) {
+            // Points: 7 points per chunk (4 bytes each = 28 bytes)
+            // Offset 4: 0-6, Offset 5: 7-13, Offset 6: 14-16
+            uint8_t start = (offset - 4) * 7;
+            uint8_t count = 7;
+            if (start >= kb_accel.num_points) count = 0;
+            else if (start + count > kb_accel.num_points) count = kb_accel.num_points - start;
+
+            report[1] = offset;
+            report[2] = count;
+            uint8_t off = 3;
+            for(uint8_t i=0; i<count; i++) {
+                keyball_point_t *p = &kb_accel.points[start + i];
+                report[off++] = (p->x >> 8) & 0xFF; // X High
+                report[off++] = p->x & 0xFF;        // X Low
+                report[off++] = (p->y >> 8) & 0xFF;
+                report[off++] = p->y & 0xFF;
+            }
+        } else {
+            // Page 1: 0..13 (Offset 1)
+            // Page 2: 14..27 (Offset 2)
+            // Page 3: 28..31 (Offset 3)
+            uint8_t start = (offset - 1) * 14;
+            uint8_t count = 14;
+            if (start >= ACCEL_LUT_SIZE) count = 0;
+            else if (start + count > ACCEL_LUT_SIZE) count = ACCEL_LUT_SIZE - start;
+
+            report[1] = offset; // Echo offset
+            report[2] = count;
+            uint8_t off = 3;
+            for(uint8_t i=0; i<count; i++) {
+                uint16_t val = kb_accel.lut[start+i];
+                report[off++] = (val >> 8) & 0xFF;
+                report[off++] = val & 0xFF;
+            }
+        }
+        raw_hid_send(report, 32);
+    }
+    else if (cmd == 0x13) { // CMD_SET_POINTS
+        // [CMD, START_IDX, COUNT, VER, P0_X_H, P0_X_L, P0_Y_H, P0_Y_L, ...]
+        uint8_t start_idx = data[1];
+        uint8_t count = data[2];
+        kb_accel.algo_version = data[3];
+
+        uint8_t offset = 4;
+
+        if (start_idx + count > kb_accel.num_points) kb_accel.num_points = start_idx + count;
+
+        for (uint8_t i = 0; i < count; i++) {
+            if (start_idx + i < ACCEL_MAX_POINTS && offset + 3 < length) {
+                kb_accel.points[start_idx + i].x = (data[offset] << 8) | data[offset+1];
+                offset += 2;
+                kb_accel.points[start_idx + i].y = (data[offset] << 8) | data[offset+1];
+                offset += 2;
+            }
+        }
+    }
+    else if (cmd == CMD_GET_SPEED) {
+        // Respond with max speed since last read (Peak Hold)
+        data[0] = CMD_GET_SPEED;
+        data[1] = (kb_last_speed >> 8) & 0xFF;
+        data[2] = kb_last_speed & 0xFF;
+        raw_hid_send(data, length);
+
+        // Reset for next interval
+        kb_last_speed = 0;
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////

@@ -164,6 +164,29 @@ void keyboard_post_init_user(void) {
     // Override EEPROM settings to ensure scroll snapping is disabled by default
     keyball_set_scrollsnap_mode(KEYBALL_SCROLLSNAP_MODE_FREE);
     set_auto_mouse_enable(true);
+
+    const keyball_accel_t accel_conf = {
+        .lut = {
+            48, 206, 1204, 1680, 1783, 1783, 1783, 1783,
+            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+        },
+        .max_speed_limit = 1920, // Safety Cap
+        .global_gain = 256,      // 1.00x Sensitivity
+        .algo_version = 1,
+        .num_points = 7,
+        .points = {
+            {0, 48},
+            {778, 71},
+            {1318, 495},
+            {1858, 1063},
+            {2884, 1620},
+            {3820, 1783},
+            {12800, 1783}
+        }
+    };
+    keyball_set_acceleration_data(&accel_conf);
 }
 
 bool caps_word_press_user(uint16_t keycode) {
@@ -223,7 +246,7 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     // Tri-layers
     state = update_tri_layer_state(state, L_NAV, L_SYMB, L_NUM);
     state = update_tri_layer_state(state, L_NAV, L_FN, L_UNI_NAV);
-    
+
     if (layer_state_cmp(state, L_NAV) && layer_state_cmp(state, L_SYMB) && layer_state_cmp(state, L_FN)) {
         state |= (1UL << L_UNI_MATH);
     } else {
