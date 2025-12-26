@@ -369,6 +369,7 @@
         const CMD_SET_CURVE_ALL = 0x11;
         const CMD_READ_ALL = 0x12;
         const CMD_GET_SPEED = 0x20;
+        const CMD_RESET_CONFIG = 0x30;
 
         const LUT_SIZE = 32;
         let device = null;
@@ -1092,11 +1093,25 @@
             draw(); sendCurveChunked();
         });
 
+
+
+        // ...
+
         document.getElementById('btnReset').addEventListener('click', async () => {
             if (device && device.opened) {
-                // Reload from device
-                await readConfigFromDevice();
-                logDebug("Requesting reload from firmware...");
+                // Send Reset Command
+                const report = new Uint8Array(32);
+                report[0] = CMD_RESET_CONFIG;
+                await device.sendReport(0, report);
+
+                logDebug("Sent CMD_RESET_CONFIG to firmware.");
+
+                // Wait a bit for FW to reset state
+                setTimeout(async () => {
+                    await readConfigFromDevice();
+                    logDebug("Requesting reload from firmware...");
+                }, 50);
+
             } else {
                 // Offline fallback
                 const maxRaw = getMaxRaw();

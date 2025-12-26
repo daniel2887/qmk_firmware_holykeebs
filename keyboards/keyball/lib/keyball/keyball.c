@@ -59,10 +59,12 @@ keyball_t keyball = {
 // Acceleration Tuning Globals
 #if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 static keyball_accel_t kb_accel = ACCEL_LUT_DEFAULT;
+static keyball_accel_t kb_accel_default = ACCEL_LUT_DEFAULT;
 static uint16_t kb_last_speed = 0;
 
 void keyball_set_acceleration_data(const keyball_accel_t *data) {
     kb_accel = *data;
+    kb_accel_default = *data;
 }
 
 uint16_t keyball_get_last_speed(void) {
@@ -567,7 +569,8 @@ enum {
     CMD_SET_CURVE_PT = 0x10,
     CMD_SET_CURVE_ALL = 0x11,
     CMD_READ_ALL = 0x12,
-    CMD_GET_SPEED = 0x20
+    CMD_GET_SPEED = 0x20,
+    CMD_RESET_CONFIG = 0x30
 #endif
 };
 
@@ -687,6 +690,11 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         raw_hid_send(data, length);
 
         // Reset for next interval
+        kb_last_speed = 0;
+    }
+    else if (cmd == CMD_RESET_CONFIG) {
+        // Restore default configuration from backup
+        kb_accel = kb_accel_default;
         kb_last_speed = 0;
     }
 #endif
