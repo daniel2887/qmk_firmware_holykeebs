@@ -2,13 +2,42 @@
 
 ## 1. Project Overview
 **Project**: Keyball Tuner & Firmware Acceleration
-**Goal**: Provide a premium, real-time GUI for tuning custom mouse acceleration curves on Keyball trackball keyboards (QMK-based).
+**Goal**: Provide a comprehensive solution for custom mouse acceleration on Keyball trackball keyboards. This includes:
+1.  **Modular Firmware**: Support for multiple acceleration algorithms (Simple, LUT, Custom).
+2.  **Tuning Tool**: A premium, real-time GUI for visually tuning the LUT-based algorithm.
 **Core Technologies**:
 -   **Firmware**: QMK (C), RawHID, Fixed-Point Arithmetic (Q8.8).
 -   **Frontend**: HTML5, Vanilla JS, CSS (Dark Mode), WebHID API.
 
-## 2. Architecture & Data Flow
+## 2. Project Structure & Ecosystem
+This knowledge base covers the customized Keyball firmware ecosystem.
+
+### Key Directories
+*   **User Keymap**: `keyboards/keyball/keyball44/keymaps/daniel2887/`
+    *   Primary workspace for the user `daniel2887`. Contains `keymap.c`, `config.h`, `rules.mk`.
+    *   **Note**: All configuration changes (e.g., `KEYBALL_ACCEL_MODE`) are made here.
+*   **Core Driver**: `keyboards/keyball/lib/keyball/`
+    *   `keyball.c`: Core logic, custom acceleration algorithms, RawHID dispatch.
+    *   `keyball.h`: Config definitions, structs, mode defines.
+*   **Tools**: `keyboards/keyball/keyball44/keymaps/daniel2887/tools/`
+    *   `keyball_tuner/tuner.html`: Standalone WebHID Tuner for LUT acceleration.
+
+## 3. Architecture & Data Flow
 The system consists of a standalone HTML tool that communicates with the QMK firmware via RawHID packets.
+
+
+### 2a. Acceleration Architecture (Modular)
+The firmware supports swappable acceleration algorithms via `config.h`:
+*   **LUT Mode** (`KEYBALL_ACCEL_MODE_LUT`): The current default. Uses the 32-point Tuner-compatible curve.
+*   **Legacy Mode** (`KEYBALL_ACCEL_MODE_SIMPLE`): Uses the simple linear `BASE + SPEED * FACTOR` formula from `config.h`.
+*   **Custom Mode** (`KEYBALL_ACCEL_MODE_CUSTOM`): Reserved for future algorithms.
+
+To switch modes, define `KEYBALL_ACCEL_MODE` in the user's `config.h`.
+
+### 2b. LUT Mode Architecture (Tuner Integration)
+**Scope**: Applicable ONLY when `KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT`.
+
+In LUT mode, the ecosystem functions as follows:
 
 ```mermaid
 graph LR
@@ -30,7 +59,9 @@ graph LR
 -   **Graphing**: HTML5 Canvas. Custom `SplineInterpolator` (Monotone Cubic Hermite) ensures strict monotonicity.
 -   **Communication**: `navigator.hid`. Requires HTTPS or `localhost` context.
 
-## 3. RawHID Protocol Specification
+## 4. RawHID Protocol Specification (LUT Mode Only)
+**Scope**: Applicable ONLY when `KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT`.
+
 **Usage Page**: `0xFF60`, **Usage**: `0x61`
 **Packet Size**: 32 bytes
 
@@ -44,7 +75,8 @@ graph LR
 > **IMPORTANT**: The visualizer relies on **Peak Hold** logic in the firmware. The firmware tracks `max_speed` seen since the last `CMD_GET_SPEED` request.
 > `CMD_READ_ALL` echos the `offset` in byte 1 to allow reliable chunk tracking in JS.
 
-## 4. Critical Technical Constraints & Lessons Learned
+## 5. Critical Technical Constraints & Lessons Learned (Tuner/LUT)
+**Scope**: These constraints primarily apply to the **LUT Algorithm** and the **Web Tuner**.
 
 ### A. Monotonicity is King
 *   **Concept**: Acceleration curves must be strictly non-decreasing. A dip in the curve means the cursor *slows down* as you move the ball *faster*, which feels broken.
@@ -76,7 +108,7 @@ graph LR
 *   **Visualization**: Draw the actual LUT points (gray x's) on top of the curve. This builds trust that the FW interprets the curve exactly as drawn.
 *   **Inputs**: Number inputs should correct invalid values immediately on blur (e.g., entering `200` clamps to `127`).
 
-## 5. Critical User Journeys
+## 6. Critical User Journeys
 1.  **Connection**: User clicks "Connect" -> `navigator.hid.requestDevice`.
 2.  **Sync**: On connect, Frontend sends `CMD_READ_ALL`. Firmware responds. Frontend populates graph/sliders.
 3.  **Tuning**:
@@ -88,7 +120,7 @@ graph LR
     *   Cursor moves on graph.
 5.  **Saving**: User copies the generated C code from "Keymap Config" panel into their `keymap.c` and recompiles. (We do not support EEPROM persistence yet to keep FW simple).
 
-## 6. Protocol V2: Persistence & Versioning (Critical)
+## 7. Protocol V2: Persistence & Versioning (Critical)
 
 **Why Versioning?**
 The firmware now stores the exact Control Points (`keyball_point_t`) alongside the LUT. This allows users to reload their editing state perfectly.
@@ -113,12 +145,12 @@ However, control points only make sense if the **Interpolation Algorithm** used 
 
 > **Note**: Both X and Y coordinates in V2 are stored as **Q8.8 Fixed Point** (uint16_t). `Val = Round(Real * 256)`.
 
-## 7. Future Development / Roadmap
+## 8. Future Development / Roadmap
 *   **EEPROM Support**: Currently configuration is lost on reboot unless compiled into `keymap.c`. Future: Save structs to EEPROM.
 *   **Profile Switching**: Store multiple curves in FW and switch via keycode.
 *   **Per-Axis Tuning**: Separate curves for X and Y (rarely needed for trackballs but possible).
 
-## 8. Troubleshooting Cheatsheet
+## 9. Troubleshooting Cheatsheet
 *   **"Raw Sensor Speed" stays at 0**: Check `RAW_ENABLE = yes`. Ensure firmware was re-flashed. Check `console.log` for input reports.
 *   **Curve looks weird/flat**: Check `Max Accel` scale. Check if `Max Raw` is too low for your flick usage.
 *   **Tooltips/Cursor not working**: Ensure `draw()` loop order is correct (Grid -> Curve -> Cursor -> Tooltips).

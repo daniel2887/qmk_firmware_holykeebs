@@ -273,6 +273,16 @@ void keyball_set_cpi(uint16_t cpi);
 //////////////////////////////////////////////////////////////////////////////
 // Acceleration Tuning
 
+// Acceleration Modes
+#define KEYBALL_ACCEL_MODE_SIMPLE 0
+#define KEYBALL_ACCEL_MODE_LUT    1
+#define KEYBALL_ACCEL_MODE_CUSTOM 2
+
+// Default to LUT if not configured
+#ifndef KEYBALL_ACCEL_MODE
+#   define KEYBALL_ACCEL_MODE KEYBALL_ACCEL_MODE_LUT
+#endif
+
 // 32-point lookup table for acceleration curve
 // Input speed (0-127) is mapped to these 32 points (interp).
 // Values are fixed point (8.8) scale factors.
@@ -280,6 +290,8 @@ void keyball_set_cpi(uint16_t cpi);
 #define ACCEL_LUT_SIZE 32
 #define ACCEL_MAX_POINTS 16
 #define ACCEL_ALGO_VER_1 1
+
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 
 typedef struct {
     uint16_t x; // Q8.8 fixed point (value * 256)
@@ -314,4 +326,6 @@ void keyball_set_acceleration_data(const keyball_accel_t *data);
 
 // Get the last measured speed (for visualization)
 uint16_t keyball_get_last_speed(void);
+
+#endif
 

@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "drivers/sensors/pmw33xx_common.h"
 
 #include <string.h>
+#include <math.h>
 #include "raw_hid.h"
 
 const uint16_t CPI_DEFAULT    = KEYBALL_CPI_DEFAULT;
@@ -56,6 +57,7 @@ keyball_t keyball = {
 };
 
 // Acceleration Tuning Globals
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 static keyball_accel_t kb_accel = ACCEL_LUT_DEFAULT;
 static uint16_t kb_last_speed = 0;
 
@@ -66,6 +68,7 @@ void keyball_set_acceleration_data(const keyball_accel_t *data) {
 uint16_t keyball_get_last_speed(void) {
     return kb_last_speed;
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 // Hook points
@@ -221,6 +224,8 @@ __attribute__((weak)) void keyball_on_apply_motion_to_mouse_scroll(report_mouse_
 }
 
 #ifdef KEYBALL_POINTER_ACCEL_ENABLE
+
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 static uint16_t isqrt16(uint16_t n) {
     uint16_t root = 0;
     uint16_t bit = 1 << 14;
@@ -237,7 +242,7 @@ static uint16_t isqrt16(uint16_t n) {
     return root;
 }
 
-static void apply_acceleration(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
+static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
     uint16_t speed = isqrt16((int16_t)dx * dx + (int16_t)dy * dy);
     if (speed > kb_last_speed) {
         kb_last_speed = speed;
@@ -288,6 +293,33 @@ static void apply_acceleration(keyball_motion_t *accum, int8_t dx, int8_t dy, in
 
     accum->remainder_x = sx - (*out_x << 8);
     accum->remainder_y = sy - (*out_y << 8);
+}
+#endif
+
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE
+static void keyball_accel_apply_simple(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
+    // Legacy Algorithm: output = input * (BASE + SPEED * FACTOR)
+    float speed = sqrtf(dx * dx + dy * dy);
+    float scale = KEYBALL_ACCEL_BASE + (speed * KEYBALL_ACCEL_FACTOR);
+
+    if (scale > KEYBALL_ACCEL_MAX) scale = KEYBALL_ACCEL_MAX;
+
+    // Simple float scaling without remainder accumulation (Legacy behavior)
+    *out_x = (int16_t)(dx * scale);
+    *out_y = (int16_t)(dy * scale);
+}
+#endif
+
+static void apply_acceleration(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
+    keyball_accel_apply_lut(accum, dx, dy, out_x, out_y);
+#elif KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE
+    keyball_accel_apply_simple(accum, dx, dy, out_x, out_y);
+#else
+    // NONE or CUSTOM fallbacks
+    *out_x = dx;
+    *out_y = dy;
+#endif
 }
 #endif
 
@@ -531,15 +563,18 @@ void keyball_oled_render_layerinfo(void) {
 
 // Command IDs
 enum {
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     CMD_SET_CURVE_PT = 0x10,
     CMD_SET_CURVE_ALL = 0x11,
     CMD_READ_ALL = 0x12,
     CMD_GET_SPEED = 0x20
+#endif
 };
 
 void raw_hid_receive(uint8_t *data, uint8_t length) {
     uint8_t cmd = data[0];
 
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     if (cmd == CMD_SET_CURVE_PT) {
         // [CMD, INDEX, VAL_H, VAL_L, MAX_H, MAX_L]
         uint8_t idx = data[1];
@@ -654,6 +689,7 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         // Reset for next interval
         kb_last_speed = 0;
     }
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
