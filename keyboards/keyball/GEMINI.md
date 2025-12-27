@@ -154,3 +154,22 @@ However, control points only make sense if the **Interpolation Algorithm** used 
 *   **"Raw Sensor Speed" stays at 0**: Check `RAW_ENABLE = yes`. Ensure firmware was re-flashed. Check `console.log` for input reports.
 *   **Curve looks weird/flat**: Check `Max Accel` scale. Check if `Max Raw` is too low for your flick usage.
 *   **Tooltips/Cursor not working**: Ensure `draw()` loop order is correct (Grid -> Curve -> Cursor -> Tooltips).
+
+## 10. Simple Mode Refactor & Math (2025 Update)
+
+### A. Configuration Structure
+*   **Old**: `#defines` in `config.h`.
+*   **New**: Runtime struct `keyball_accel_t` in `keymap.c`.
+    *   Parameters for LUT and Simple modes are separated via a `union` (`.accel_lut` vs `.accel_simple`).
+    *   **Helper**: `Q88(float)` macro added to `keyball.h` to easily convert human-readable floats (e.g., `0.4`) to Q8.8 integers (`102`).
+
+### B. Fixed-Point Math & Directionality
+*   **Issue**: When implementing linear acceleration `(Input * Scale) >> 8`, simply bit-shifting the result causes **asymmetric rounding**.
+    *   Positive numbers (Right/Down) round towards 0 (truncation).
+    *   Negative numbers (Left/Top) round towards negative infinity (effectively rounding "up" in magnitude).
+    *   **Symptom**: Cursor feels faster/more responsive moving Up/Left than Down/Right.
+*   **Solution**: **Accumulate the Remainder**.
+    *   You must track the bits shifted out (`fractional part`) in a state variable (e.g., `accum->remainder_x`).
+    *   Add this remainder back into the calculation for the next frame.
+    *   This ensures the "lost" fractional movement is eventually applied, smoothing out the directionality differences.
+

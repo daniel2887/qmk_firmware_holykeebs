@@ -167,24 +167,43 @@ void keyboard_post_init_user(void) {
 
 #if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     const keyball_accel_t accel_conf = {
-        .lut = {
-            48, 206, 1204, 1680, 1783, 1783, 1783, 1783,
-            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
-            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
-            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
-        },
-        .max_speed_limit = 1920, // Safety Cap
-        .global_gain = 256,      // 1.00x Sensitivity
-        .algo_version = 1,
-        .num_points = 7,
-        .points = {
-            {0, 48},
-            {778, 71},
-            {1318, 495},
-            {1858, 1063},
-            {2884, 1620},
-            {3820, 1783},
-            {12800, 1783}
+        .accel_lut = {
+            .table = {
+                48, 206, 1204, 1680, 1783, 1783, 1783, 1783,
+                1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+                1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+                1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+            },
+            .max_speed_limit = 1920, // Safety Cap
+            .global_gain = 256,      // 1.00x Sensitivity
+            .algo_version = 1,
+            .num_points = 7,
+            .points = {
+                {0, 48},
+                {778, 71},
+                {1318, 495},
+                {1858, 1063},
+                {2884, 1620},
+                {3820, 1783},
+                {12800, 1783}
+            }
+        }
+    };
+    keyball_set_acceleration_data(&accel_conf);
+#elif KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE
+    const keyball_accel_t accel_conf = {
+        .accel_simple = {
+            // Base sensitivity (0.0 - 1.0 for dampening).
+            // Lower this value (e.g. 0.3) to make slow movements much slower/more precise.
+            .base   = Q88(0.4),
+
+            // Acceleration rate per count of speed.
+            // Increase this to make the cursor accelerate more aggressively as you move faster.
+            .factor = Q88(0.10),
+
+            // Maximum sensitivity multiplier.
+            // Increase this if you want to cover more distance (e.g. multiple monitors) when flinging.
+            .max    = Q88(6.0)
         }
     };
     keyball_set_acceleration_data(&accel_conf);

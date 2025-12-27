@@ -57,20 +57,23 @@ keyball_t keyball = {
 };
 
 // Acceleration Tuning Globals
+// Acceleration Tuning Globals
+static keyball_accel_t kb_accel = {0}; // Initialize with zeros, will be set by keymap
 #if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
-static keyball_accel_t kb_accel = ACCEL_LUT_DEFAULT;
 static keyball_accel_t kb_accel_default = ACCEL_LUT_DEFAULT;
+#endif
 static uint16_t kb_last_speed = 0;
 
 void keyball_set_acceleration_data(const keyball_accel_t *data) {
     kb_accel = *data;
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     kb_accel_default = *data;
+#endif
 }
 
 uint16_t keyball_get_last_speed(void) {
     return kb_last_speed;
 }
-#endif
 
 //////////////////////////////////////////////////////////////////////////////
 // Hook points
@@ -227,7 +230,6 @@ __attribute__((weak)) void keyball_on_apply_motion_to_mouse_scroll(report_mouse_
 
 #ifdef KEYBALL_POINTER_ACCEL_ENABLE
 
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 static uint16_t isqrt16(uint16_t n) {
     uint16_t root = 0;
     uint16_t bit = 1 << 14;
@@ -243,6 +245,8 @@ static uint16_t isqrt16(uint16_t n) {
     }
     return root;
 }
+
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 
 static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
     uint16_t speed = isqrt16((int16_t)dx * dx + (int16_t)dy * dy);
@@ -262,8 +266,8 @@ static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t d
 
     // Linear Interpolation
     // remainder is the lower 2 bits of speed
-    uint16_t y1 = kb_accel.lut[index];
-    uint16_t y2 = kb_accel.lut[index+1];
+    uint16_t y1 = kb_accel.accel_lut.table[index];
+    uint16_t y2 = kb_accel.accel_lut.table[index+1];
     uint8_t rem = speed & 3; // 0..3
 
     // y = y1 + (y2 - y1) * rem / 4
@@ -272,19 +276,19 @@ static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t d
 
     // Apply Global Gain (Q8.8)
     // scale = scale * gain / 256
-    if (kb_accel.global_gain > 0) {
-        scale = (scale * kb_accel.global_gain) >> 8;
+    if (kb_accel.accel_lut.global_gain > 0) {
+        scale = (scale * kb_accel.accel_lut.global_gain) >> 8;
     } else {
         // Fallback if gain is 0 (shouldn't happen with default, but safety)
         // Treat 0 as 1.0x to avoid stuck cursor
-        if (kb_accel.global_gain == 0) {
+        if (kb_accel.accel_lut.global_gain == 0) {
              // Do nothing (keep scale)
         }
     }
 
     // Safety clamp from tuner
-    if (kb_accel.max_speed_limit > 0) {
-        if (scale > kb_accel.max_speed_limit) scale = kb_accel.max_speed_limit;
+    if (kb_accel.accel_lut.max_speed_limit > 0) {
+        if (scale > kb_accel.accel_lut.max_speed_limit) scale = kb_accel.accel_lut.max_speed_limit;
     }
 
     int32_t sx = (int32_t)dx * scale + accum->remainder_x;
@@ -300,15 +304,33 @@ static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t d
 
 #if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE
 static void keyball_accel_apply_simple(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
-    // Legacy Algorithm: output = input * (BASE + SPEED * FACTOR)
-    float speed = sqrtf(dx * dx + dy * dy);
-    float scale = KEYBALL_ACCEL_BASE + (speed * KEYBALL_ACCEL_FACTOR);
+    // Fixed-Point Simple Algo: output = input * (BASE + SPEED * FACTOR)
+    // BASE, FACTOR, MAX are Q8.8
 
-    if (scale > KEYBALL_ACCEL_MAX) scale = KEYBALL_ACCEL_MAX;
+    // 1. Calculate speed (raw counts)
+    uint16_t speed = isqrt16((int16_t)dx * dx + (int16_t)dy * dy);
 
-    // Simple float scaling without remainder accumulation (Legacy behavior)
-    *out_x = (int16_t)(dx * scale);
-    *out_y = (int16_t)(dy * scale);
+    // 2. Calculate Scale (Q8.8)
+    // scale = base + (speed * factor)
+    // speed is Q0, factor is Q8.8 -> product is Q8.8
+    uint32_t scale_long = kb_accel.accel_simple.base + (uint32_t)speed * kb_accel.accel_simple.factor;
+    uint16_t scale = (scale_long > 0xFFFF) ? 0xFFFF : (uint16_t)scale_long;
+
+    // 3. Clamp to Max (Q8.8)
+    if (kb_accel.accel_simple.max > 0 && scale > kb_accel.accel_simple.max) {
+        scale = kb_accel.accel_simple.max;
+    }
+
+    // 4. Apply Scaling with Remainder Accumulation
+    // Use proper fixed-point math with remainder to prevent directional asymmetry
+    int32_t sx = (int32_t)dx * scale + accum->remainder_x;
+    int32_t sy = (int32_t)dy * scale + accum->remainder_y;
+
+    *out_x = sx >> 8;
+    *out_y = sy >> 8;
+
+    accum->remainder_x = sx - (*out_x << 8);
+    accum->remainder_y = sy - (*out_y << 8);
 }
 #endif
 
@@ -563,35 +585,36 @@ void keyball_oled_render_layerinfo(void) {
 //////////////////////////////////////////////////////////////////////////////
 // RawHID
 
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 // Command IDs
 enum {
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
+
     CMD_SET_CURVE_PT = 0x10,
     CMD_SET_CURVE_ALL = 0x11,
     CMD_READ_ALL = 0x12,
     CMD_GET_SPEED = 0x20,
     CMD_RESET_CONFIG = 0x30
-#endif
 };
+#endif
 
 void raw_hid_receive(uint8_t *data, uint8_t length) {
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     uint8_t cmd = data[0];
 
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     if (cmd == CMD_SET_CURVE_PT) {
         // [CMD, INDEX, VAL_H, VAL_L, MAX_H, MAX_L]
         uint8_t idx = data[1];
         if (idx < ACCEL_LUT_SIZE) {
             uint16_t val = (data[2] << 8) | data[3];
-            kb_accel.lut[idx] = val;
+            kb_accel.accel_lut.table[idx] = val;
         }
         uint16_t max_limit = (data[4] << 8) | data[5];
-        kb_accel.max_speed_limit = max_limit;
+        kb_accel.accel_lut.max_speed_limit = max_limit;
 
         // Extended capability: Gain at index 6,7
         if (length > 7) {
              uint16_t gain = (data[6] << 8) | data[7];
-             if (gain > 0) kb_accel.global_gain = gain;
+             if (gain > 0) kb_accel.accel_lut.global_gain = gain;
         }
     }
     else if (cmd == CMD_SET_CURVE_ALL) {
@@ -603,7 +626,7 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         for (uint8_t i = 0; i < count; i++) {
             if (start_idx + i < ACCEL_LUT_SIZE && offset + 1 < length) {
                 uint16_t val = (data[offset] << 8) | data[offset+1];
-                kb_accel.lut[start_idx + i] = val;
+                kb_accel.accel_lut.table[start_idx + i] = val;
                 offset += 2;
             }
         }
@@ -619,25 +642,25 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
 
         if (offset == 0) {
             report[1] = 0; // echoed offset
-            report[2] = (kb_accel.max_speed_limit >> 8) & 0xFF;
-            report[3] = kb_accel.max_speed_limit & 0xFF;
-            report[4] = (kb_accel.global_gain >> 8) & 0xFF;
-            report[5] = kb_accel.global_gain & 0xFF;
-            report[6] = kb_accel.algo_version;
-            report[7] = kb_accel.num_points;
+            report[2] = (kb_accel.accel_lut.max_speed_limit >> 8) & 0xFF;
+            report[3] = kb_accel.accel_lut.max_speed_limit & 0xFF;
+            report[4] = (kb_accel.accel_lut.global_gain >> 8) & 0xFF;
+            report[5] = kb_accel.accel_lut.global_gain & 0xFF;
+            report[6] = kb_accel.accel_lut.algo_version;
+            report[7] = kb_accel.accel_lut.num_points;
         } else if (offset >= 4) {
             // Points: 7 points per chunk (4 bytes each = 28 bytes)
             // Offset 4: 0-6, Offset 5: 7-13, Offset 6: 14-16
             uint8_t start = (offset - 4) * 7;
             uint8_t count = 7;
-            if (start >= kb_accel.num_points) count = 0;
-            else if (start + count > kb_accel.num_points) count = kb_accel.num_points - start;
+            if (start >= kb_accel.accel_lut.num_points) count = 0;
+            else if (start + count > kb_accel.accel_lut.num_points) count = kb_accel.accel_lut.num_points - start;
 
             report[1] = offset;
             report[2] = count;
             uint8_t off = 3;
             for(uint8_t i=0; i<count; i++) {
-                keyball_point_t *p = &kb_accel.points[start + i];
+                keyball_point_t *p = &kb_accel.accel_lut.points[start + i];
                 report[off++] = (p->x >> 8) & 0xFF; // X High
                 report[off++] = p->x & 0xFF;        // X Low
                 report[off++] = (p->y >> 8) & 0xFF;
@@ -656,7 +679,7 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
             report[2] = count;
             uint8_t off = 3;
             for(uint8_t i=0; i<count; i++) {
-                uint16_t val = kb_accel.lut[start+i];
+                uint16_t val = kb_accel.accel_lut.table[start+i];
                 report[off++] = (val >> 8) & 0xFF;
                 report[off++] = val & 0xFF;
             }
@@ -667,17 +690,17 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         // [CMD, START_IDX, COUNT, VER, P0_X_H, P0_X_L, P0_Y_H, P0_Y_L, ...]
         uint8_t start_idx = data[1];
         uint8_t count = data[2];
-        kb_accel.algo_version = data[3];
+        kb_accel.accel_lut.algo_version = data[3];
 
         uint8_t offset = 4;
 
-        if (start_idx + count > kb_accel.num_points) kb_accel.num_points = start_idx + count;
+        if (start_idx + count > kb_accel.accel_lut.num_points) kb_accel.accel_lut.num_points = start_idx + count;
 
         for (uint8_t i = 0; i < count; i++) {
             if (start_idx + i < ACCEL_MAX_POINTS && offset + 3 < length) {
-                kb_accel.points[start_idx + i].x = (data[offset] << 8) | data[offset+1];
+                kb_accel.accel_lut.points[start_idx + i].x = (data[offset] << 8) | data[offset+1];
                 offset += 2;
-                kb_accel.points[start_idx + i].y = (data[offset] << 8) | data[offset+1];
+                kb_accel.accel_lut.points[start_idx + i].y = (data[offset] << 8) | data[offset+1];
                 offset += 2;
             }
         }

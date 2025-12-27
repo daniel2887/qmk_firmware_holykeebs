@@ -291,34 +291,30 @@ void keyball_set_cpi(uint16_t cpi);
 #define ACCEL_MAX_POINTS 16
 #define ACCEL_ALGO_VER_1 1
 
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
+// Helper macro for Q8.8 fixed-point conversion
+#define Q88(x) ((uint16_t)((x) * 256.0 + 0.5))
 
 typedef struct {
     uint16_t x; // Q8.8 fixed point (value * 256)
     uint16_t y; // Q8.8 fixed point
 } keyball_point_t;
 
-#define ACCEL_LUT_DEFAULT { \
-    .lut = { \
-        102, 120, 138, 156, 175, 193, 211, 229, \
-        247, 265, 283, 301, 319, 337, 355, 373, \
-        400, 441, 483, 525, 566, 608, 649, 691, \
-        733, 774, 816, 858, 899, 941, 982, 1024 \
-    }, \
-    .max_speed_limit = 1200, \
-    .global_gain = 256, \
-    .algo_version = ACCEL_ALGO_VER_1, \
-    .num_points = 2, \
-    .points = { {0, 102}, {32512, 1024} } \
-}
-
 typedef struct {
-    uint16_t lut[ACCEL_LUT_SIZE];
-    uint16_t max_speed_limit; // Safety cap
-    uint16_t global_gain;     // Q8.8 Global Multiplier (256 = 1.0x)
-    uint8_t algo_version;
-    uint8_t num_points;
-    keyball_point_t points[ACCEL_MAX_POINTS];
+    union {
+        struct {
+            uint16_t table[ACCEL_LUT_SIZE];
+            uint16_t max_speed_limit; // Safety cap
+            uint16_t global_gain;     // Q8.8 Global Multiplier (256 = 1.0x)
+            uint8_t algo_version;
+            uint8_t num_points;
+            keyball_point_t points[ACCEL_MAX_POINTS];
+        } accel_lut;
+        struct {
+            uint16_t base;     // Q8.8
+            uint16_t factor;   // Q8.8
+            uint16_t max;      // Q8.8
+        } accel_simple;
+    };
 } keyball_accel_t;
 
 // Update the acceleration configuration
@@ -326,6 +322,25 @@ void keyball_set_acceleration_data(const keyball_accel_t *data);
 
 // Get the last measured speed (for visualization)
 uint16_t keyball_get_last_speed(void);
+
+#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
+
+
+#define ACCEL_LUT_DEFAULT { \
+    .accel_lut = { \
+        .table = { \
+            102, 120, 138, 156, 175, 193, 211, 229, \
+            247, 265, 283, 301, 319, 337, 355, 373, \
+            400, 441, 483, 525, 566, 608, 649, 691, \
+            733, 774, 816, 858, 899, 941, 982, 1024 \
+        }, \
+        .max_speed_limit = 1200, \
+        .global_gain = 256, \
+        .algo_version = ACCEL_ALGO_VER_1, \
+        .num_points = 2, \
+        .points = { {0, 102}, {32512, 1024} } \
+    } \
+}
 
 #endif
 

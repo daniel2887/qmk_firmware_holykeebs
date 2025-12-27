@@ -39,18 +39,5 @@
 // options:
 //   KEYBALL_ACCEL_MODE_LUT    (Default) - Advanced 32-point curve, tunable via HTML tool.
 //   KEYBALL_ACCEL_MODE_SIMPLE           - Linear formula: Base + (Speed * Factor).
+// See keymap.c, `keyball_accel_t` struct for configuration.
 #define KEYBALL_ACCEL_MODE KEYBALL_ACCEL_MODE_LUT
-
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE
-    // Base sensitivity (0.0 - 1.0 for dampening).
-    // Lower this value (e.g. 0.3) to make slow movements much slower/more precise.
-    #define KEYBALL_ACCEL_BASE 0.4
-    // Acceleration rate per count of speed.
-    // Increase this to make the cursor accelerate more aggressively as you move faster.
-    #define KEYBALL_ACCEL_FACTOR 0.10
-    // Maximum sensitivity multiplier.
-    // Increase this if you want to cover more distance (e.g. multiple monitors) when flinging.
-    #define KEYBALL_ACCEL_MAX 6.0
-#elif KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
-    // See keymap.c, `keyball_accel_t` struct for configuration.
-#endif
