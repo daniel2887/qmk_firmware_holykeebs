@@ -237,7 +237,7 @@
             vertical-align: middle;
         }
 
-        .connected .status-indicator {
+        .status-indicator.connected {
             background: #69f0ae;
             box-shadow: 0 0 8px #69f0ae;
         }
@@ -258,6 +258,8 @@
                 <h1 style="display:inline;">Keyball Tuner</h1>
             </div>
             <div class="header-controls">
+                <div id="algoDisplay" style="margin-right: 20px; font-weight: 600; color: #aaa; font-size: 0.9rem;">
+                </div>
                 <div id="statusDot" class="status-indicator"></div>
                 <button id="btnConnect">Connect</button>
             </div>
@@ -266,75 +268,113 @@
 
     <div class="container">
         <div class="editor-panel">
-            <div class="instructions">
-                <strong>How to use:</strong><br>
-                1. <strong>Connect</strong> to your keyboard (Usage Page 0xFF60).<br>
-                2. <strong>Global Sensitivity</strong> sets the base speed multiplier.<br>
-                3. <strong>Adjust Curve</strong> to change acceleration relative to input speed.<br>
-                * <strong>Y-Axis Max</strong> is set manually below. Points are clamped to this max.<br>
-                * Curve is strictly <strong>monotonic</strong> (dragging one point pushes others).
+            <!-- Landing View -->
+            <div id="viewLanding"
+                style="display:flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text); text-align: center;">
+                <div style="font-size: 3rem; color: var(--primary); margin-bottom: 20px;">
+                    Keyball Tuner
+                </div>
+                <p style="max-width: 500px; line-height: 1.6; font-size: 1.1rem; color: #ccc; margin-bottom: 30px;">
+                    Welcome to the advanced acceleration tuner for Keyball keyboards.<br>
+                    Connect your device to visualize your sensor data and tune your acceleration curve.
+                </p>
+                <div
+                    style="background: #222; padding: 20px; border-radius: 8px; border: 1px solid #333; max-width: 400px; text-align: left;">
+                    <h4 style="color: var(--text-sec); margin-top:0;">Getting Started</h4>
+                    <ul style="padding-left: 20px; color: #aaa; line-height: 1.5; margin-bottom: 0;">
+                        <li>Ensure your Keyball is connected via USB.</li>
+                        <li>Click the <strong>Connect</strong> button in the top right.</li>
+                        <li>Select your device from the popup list (Usage Page 0xFF60).</li>
+                    </ul>
+                </div>
             </div>
 
-            <div
-                style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; padding-left: 5px; /* Added Padding */">
-                <h3>Acceleration Curve</h3>
-                <span style="font-size: 0.8rem; color: var(--text-sec)">Touch/Click to add points. Drag to move.
-                    Dbl-Click to remove.</span>
-            </div>
+            <!-- LUT View -->
+            <div id="viewLUT" style="width: 100%; display: none; flex-direction: column;">
+                <div class="instructions">
+                    <strong>How to use:</strong><br>
+                    1. <strong>Connect</strong> to your keyboard (Usage Page 0xFF60).<br>
+                    2. <strong>Global Sensitivity</strong> sets the base speed multiplier.<br>
+                    3. <strong>Adjust Curve</strong> to change acceleration relative to input speed.<br>
+                    * <strong>Y-Axis Max</strong> is set manually below. Points are clamped to this max.<br>
+                    * Curve is strictly <strong>monotonic</strong> (dragging one point pushes others).
+                </div>
 
-            <div class="canvas-wrapper">
-                <canvas id="curveCanvas"></canvas>
-            </div>
+                <div
+                    style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; padding-left: 5px; /* Added Padding */">
+                    <h3>Acceleration Curve</h3>
+                    <span style="font-size: 0.8rem; color: var(--text-sec)">Touch/Click to add points. Drag to move.
+                        Dbl-Click to remove.</span>
+                </div>
 
-            <div class="controls"
-                style="display: flex; flex-direction: column; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
+                <div class="canvas-wrapper">
+                    <canvas id="curveCanvas"></canvas>
+                </div>
 
-                <!-- Row 1: Parameters -->
-                <div style="display: flex; gap: 20px; align-items: center; width: 100%; flex-wrap: wrap;">
-                    <!-- Max Accel -->
-                    <div style="display: flex; align-items: center; flex-shrink: 0;">
-                        <label style="font-size:0.9rem; margin-right: 10px; white-space: nowrap;">Max Accel:</label>
-                        <input type="number" id="maxScaleInput" value="5.0" step="0.5" style="width:60px;">
-                    </div>
+                <div class="controls"
+                    style="display: flex; flex-direction: column; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
 
-                    <!-- Max Raw -->
-                    <div style="display: flex; align-items: center; flex-shrink: 0;">
-                        <label style="font-size:0.9rem; margin-right: 10px; white-space: nowrap;">Max Raw:</label>
-                        <input type="number" id="maxRawInput" value="127" min="20" max="127" style="width:60px;">
-                    </div>
+                    <!-- Row 1: Parameters -->
+                    <div style="display: flex; gap: 20px; align-items: center; width: 100%; flex-wrap: wrap;">
+                        <!-- Max Accel -->
+                        <div style="display: flex; align-items: center; flex-shrink: 0;">
+                            <label style="font-size:0.9rem; margin-right: 10px; white-space: nowrap;">Max Accel:</label>
+                            <input type="number" id="maxScaleInput" value="5.0" step="0.5" style="width:60px;">
+                        </div>
 
-                    <!-- Sensitivity (Flexible Width) -->
-                    <div style="display: flex; align-items: center; gap: 10px; flex-grow: 1; min-width: 300px;">
-                        <label style="font-size:0.9rem; white-space: nowrap;">Global Sensitivity:</label>
-                        <div style="display: flex; align-items: center; gap: 5px; flex-grow: 1;">
-                            <input type="range" id="gainSlider" min="10" max="1280" value="256"
-                                style="flex-grow: 1; width: auto;">
-                            <span id="gainValue" style="min-width: 60px; text-align: right;">1.00x</span>
-                            <button id="btnResetGain"
-                                style="margin-left:5px; font-size:0.9rem; white-space: nowrap; flex-shrink: 0;">Set
-                                1.0x</button>
+                        <!-- Max Raw -->
+                        <div style="display: flex; align-items: center; flex-shrink: 0;">
+                            <label style="font-size:0.9rem; margin-right: 10px; white-space: nowrap;">Max Raw:</label>
+                            <input type="number" id="maxRawInput" value="127" min="20" max="127" style="width:60px;">
+                        </div>
+
+                        <!-- Sensitivity (Flexible Width) -->
+                        <div style="display: flex; align-items: center; gap: 10px; flex-grow: 1; min-width: 300px;">
+                            <label style="font-size:0.9rem; white-space: nowrap;">Global Sensitivity:</label>
+                            <div style="display: flex; align-items: center; gap: 5px; flex-grow: 1;">
+                                <input type="range" id="gainSlider" min="10" max="1280" value="256"
+                                    style="flex-grow: 1; width: auto;">
+                                <span id="gainValue" style="min-width: 60px; text-align: right;">1.00x</span>
+                                <button id="btnResetGain"
+                                    style="margin-left:5px; font-size:0.9rem; white-space: nowrap; flex-shrink: 0;">Set
+                                    1.0x</button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Row 2: Actions -->
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button id="btnFlatten">Preset Linear</button>
-                    <button id="btnSCurve">Preset S-Curve</button>
-                    <button id="btnReset">Reset to FW Defaults</button>
-                </div>
-
-                <!-- Debug Console -->
-                <details style="width: 100%; margin-top: 10px;">
-                    <summary style="cursor: pointer; color: var(--text-sec); font-size: 0.9rem;">Debug Console</summary>
-                    <div style="display: flex; gap: 10px; margin-top: 5px;">
-                        <button id="btnPauseDebug" style="font-size: 0.8rem; padding: 2px 8px;">Pause Log</button>
-                        <button id="btnClearDebug" style="font-size: 0.8rem; padding: 2px 8px;">Clear Log</button>
+                    <!-- Row 2: Actions -->
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button id="btnFlatten">Preset Linear</button>
+                        <button id="btnSCurve">Preset S-Curve</button>
+                        <button id="btnReset">Reset to FW Defaults</button>
                     </div>
-                    <textarea id="debugLog" readonly
-                        style="width: 100%; height: 100px; font-family: monospace; background: #000; color: #0f0; border: 1px solid #333; margin-top: 5px; font-size: 0.8rem;"></textarea>
-                </details>
 
+                    <!-- Debug Console -->
+                    <details style="width: 100%; margin-top: 10px;">
+                        <summary style="cursor: pointer; color: var(--text-sec); font-size: 0.9rem;">Debug Console
+                        </summary>
+                        <div style="display: flex; gap: 10px; margin-top: 5px;">
+                            <button id="btnPauseDebug" style="font-size: 0.8rem; padding: 2px 8px;">Pause Log</button>
+                            <button id="btnClearDebug" style="font-size: 0.8rem; padding: 2px 8px;">Clear Log</button>
+                        </div>
+                        <textarea id="debugLog" readonly
+                            style="width: 100%; height: 100px; font-family: monospace; background: #000; color: #0f0; border: 1px solid #333; margin-top: 5px; font-size: 0.8rem;"></textarea>
+                    </details>
+
+                </div>
+            </div>
+
+            <!-- Unsupported / Info View -->
+            <div id="viewUnsupported"
+                style="display:none; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #888; text-align: center;">
+                <h2 style="color: var(--text); margin-bottom: 10px;">Configuration Not Supported</h2>
+                <p style="max-width: 400px; line-height: 1.6;">
+                    The connected keyboard is using an acceleration algorithm (<strong id="algoName">Unknown</strong>)
+                    that is not supported by this tuner.
+                </p>
+                <p style="font-size: 0.9rem; color: #666;">
+                    Visualizer (Raw/Factor) may still work if supported by firmware.
+                </p>
             </div>
         </div>
 
@@ -371,6 +411,11 @@
         const CMD_GET_SPEED = 0x20;
         const CMD_RESET_CONFIG = 0x30;
 
+        const KEYBALL_ACCEL_MODE_DISCONNECTED = -1;
+        const KEYBALL_ACCEL_MODE_SIMPLE = 0;
+        const KEYBALL_ACCEL_MODE_LUT = 1;
+        const KEYBALL_ACCEL_MODE_CUSTOM = 2;
+
         const LUT_SIZE = 32;
         let device = null;
         let points = [
@@ -391,6 +436,39 @@
         let width, height;
         let draggingPoint = null;
         let pollingInterval = null;
+        let currentMode = KEYBALL_ACCEL_MODE_DISCONNECTED;
+
+        function updateModeUI(mode) {
+            currentMode = mode;
+            let name = "Disconnected";
+
+            if (mode === KEYBALL_ACCEL_MODE_DISCONNECTED) {
+                name = "Disconnected";
+            } else {
+                const names = {
+                    [KEYBALL_ACCEL_MODE_SIMPLE]: "Simple (Legacy)",
+                    [KEYBALL_ACCEL_MODE_LUT]: "LUT (Curve)",
+                    [KEYBALL_ACCEL_MODE_CUSTOM]: "Custom"
+                };
+                name = names[mode] || `Unknown (${mode})`;
+            }
+
+            document.getElementById('algoDisplay').innerText = (mode === KEYBALL_ACCEL_MODE_DISCONNECTED) ? "Disconnected" : `Mode: ${name}`;
+            if (document.getElementById('algoName')) document.getElementById('algoName').innerText = name;
+
+            const isLUT = (mode === KEYBALL_ACCEL_MODE_LUT);
+            const isDisconnected = (mode === KEYBALL_ACCEL_MODE_DISCONNECTED);
+
+            document.getElementById('viewLanding').style.display = isDisconnected ? 'flex' : 'none';
+            document.getElementById('viewLUT').style.display = isLUT ? 'flex' : 'none';
+            document.getElementById('viewUnsupported').style.display = (!isDisconnected && !isLUT) ? 'flex' : 'none';
+            document.querySelector('.status-panel').style.display = isDisconnected ? 'none' : 'flex';
+
+            if (isLUT) {
+                // Canvas needs a resize/draw after becoming visible
+                setTimeout(resize, 50);
+            }
+        }
 
         // --- Logic ---
 
@@ -1108,7 +1186,7 @@
 
                 // Wait a bit for FW to reset state
                 setTimeout(async () => {
-                    await readConfigFromDevice();
+                    await requestRead(0);
                     logDebug("Requesting reload from firmware...");
                 }, 50);
 
@@ -1132,15 +1210,19 @@
         // ... (connect logic) ...
         document.getElementById('btnConnect').addEventListener('click', async () => {
             if (device) {
+                // Disconnect logic
                 await device.close();
                 device = null;
-                document.body.classList.remove('connected');
                 document.getElementById('btnConnect').innerText = 'Connect';
+                document.getElementById('statusDot').classList.remove('connected');
+                updateModeUI(KEYBALL_ACCEL_MODE_DISCONNECTED);
                 if (pollingInterval) clearInterval(pollingInterval);
+                logDebug("Disconnected.");
                 return;
             }
 
             try {
+                // Request device
                 const devices = await navigator.hid.requestDevice({
                     filters: [{ usagePage: USAGE_PAGE, usage: USAGE }]
                 });
@@ -1148,28 +1230,28 @@
                 if (devices.length > 0) {
                     device = devices[0];
                     await device.open();
-                    document.body.classList.add('connected');
+                    logDebug(`Connected to: ${device.productName}`);
+
                     document.getElementById('btnConnect').innerText = 'Disconnect';
+                    document.getElementById('statusDot').classList.add('connected');
 
                     device.addEventListener('inputreport', handleInputReport);
 
                     // Sync on connect: Read from device
-                    await readConfigFromDevice();
+                    // Initial Handshake triggers Mode UI update
+                    await requestRead(0);
 
                     startPolling();
                 }
             } catch (err) {
                 console.error(err);
+                logDebug("Failed to connect: " + err.message);
                 alert("Failed to connect: " + err.message);
+                updateModeUI(KEYBALL_ACCEL_MODE_DISCONNECTED);
             }
         });
 
-        async function readConfigFromDevice() {
-            const report = new Uint8Array(32);
-            report[0] = CMD_READ_ALL;
-            report[1] = 0;
-            await device.sendReport(0, report);
-        }
+
 
         // --- HID ---
 
@@ -1222,11 +1304,29 @@
                     const algoVer = data[6];
                     const numPoints = data[7];
 
+                    let algoMode = data[8];
+
+                    // Heuristic for old firmware (if Byte 8 is 0 but we have valid LUT params)
+                    // Old FW: Byte 8 is 0 (SIMPLE), but Gain/Max are set.
+                    // New FW Simple: Byte 8 is 0 (SIMPLE), Gain/Max are guarded (0).
+                    // New FW LUT: Byte 8 is 1 (LUT).
+                    if (algoMode === 0 && (max_limit > 0 || globalGain > 0)) {
+                        algoMode = KEYBALL_ACCEL_MODE_LUT;
+                        logDebug("Detected Legacy Firmware (LUT Mode forced)");
+                    }
+
+                    updateModeUI(algoMode);
+                    logDebug(`Sync: Mode=${algoMode} Gain=${globalGain / 256}x Max=${max_limit}`);
+
+                    if (algoMode !== KEYBALL_ACCEL_MODE_LUT) {
+                        // Stop processing LUT sync if not in LUT mode
+                        return;
+                    }
+
                     if (globalGain === 0) globalGain = 256;
 
                     document.getElementById('gainSlider').value = globalGain;
                     document.getElementById('gainValue').innerText = (globalGain / 256).toFixed(2) + 'x';
-                    logDebug(`Sync: Gain=${globalGain / 256}x Max=${max_limit} Ver=${algoVer} Pts=${numPoints}`);
 
                     // Prepare for reading
                     incomingLut = new Array(32).fill(0);
@@ -1539,6 +1639,7 @@
         }
 
         // Init
+        updateModeUI(KEYBALL_ACCEL_MODE_DISCONNECTED);
         setTimeout(resize, 100);
     </script>
 </body>

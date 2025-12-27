@@ -173,3 +173,23 @@ However, control points only make sense if the **Interpolation Algorithm** used 
     *   Add this remainder back into the calculation for the next frame.
     *   This ensures the "lost" fractional movement is eventually applied, smoothing out the directionality differences.
 
+## 11. Architecture Refactor & Landing Page (Dec 2025)
+
+### A. Unified Safe Structs
+*   **Issue**: `keyball_accel_t` was a `union`, which meant toggling between LUT and Simple mode required careful memory management to avoid corruption (since they shared the same memory space).
+*   **Change**: Converted `keyball_accel_t` to a `struct`.
+    *   **Benefit**: Both configurations (LUT and Simple) now coexist in memory.
+    *   **Safety**: Allows the firmware to receive commands for *any* mode without risking data corruption if the active mode doesn't match the command.
+    *   **Code**: Removed `#ifdef` guards around the struct definition; it is now always fully defined.
+
+### B. Tuner Landing Page & State Management
+*   **New Feature**: A "Landing Page" now greets users on load, replacing the confusing empty LUT editor.
+*   **Key Lesson - Canvas Visibility**:
+    *   **Bug**: If the Canvas is inside a `display: none` container on load, its dimensions are 0. When it later becomes visible, it appears blank/black.
+    *   **Fix**: You **MUST** trigger a `resize()` (which sets width/height and calls `draw()`) immediately after making the canvas container visible (`display: flex`).
+*   **Key Lesson - Initialization**:
+    *   **Bug**: Relying on HTML default styles (e.g., `style="display:none"`) is fragile.
+    *   **Fix**: Always call your state management function (e.g., `updateModeUI(DISCONNECTED)`) explicitly in the `window.onload` or init block. This ensures the JS state (variables) and DOM state (visibilities) are perfectly synced from frame 0.
+*   **Key Lesson - Reset Logic**:
+    *   **Bug**: Sending `CMD_RESET_CONFIG` resets the firmware but leaves the UI stale.
+    *   **Fix**: Always chain a `requestRead(0)` (sync) command after a reset command to force the UI to reflect the new firmware state.

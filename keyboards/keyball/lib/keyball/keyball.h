@@ -300,7 +300,7 @@ typedef struct {
 } keyball_point_t;
 
 typedef struct {
-    union {
+
         struct {
             uint16_t table[ACCEL_LUT_SIZE];
             uint16_t max_speed_limit; // Safety cap
@@ -314,7 +314,7 @@ typedef struct {
             uint16_t factor;   // Q8.8
             uint16_t max;      // Q8.8
         } accel_simple;
-    };
+
 } keyball_accel_t;
 
 // Update the acceleration configuration
@@ -323,7 +323,7 @@ void keyball_set_acceleration_data(const keyball_accel_t *data);
 // Get the last measured speed (for visualization)
 uint16_t keyball_get_last_speed(void);
 
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
+
 
 
 #define ACCEL_LUT_DEFAULT { \
@@ -342,5 +342,5 @@ uint16_t keyball_get_last_speed(void);
     } \
 }
 
-#endif
+
 

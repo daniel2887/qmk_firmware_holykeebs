@@ -57,18 +57,14 @@ keyball_t keyball = {
 };
 
 // Acceleration Tuning Globals
-// Acceleration Tuning Globals
 static keyball_accel_t kb_accel = {0}; // Initialize with zeros, will be set by keymap
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 static keyball_accel_t kb_accel_default = ACCEL_LUT_DEFAULT;
-#endif
+
 static uint16_t kb_last_speed = 0;
 
 void keyball_set_acceleration_data(const keyball_accel_t *data) {
     kb_accel = *data;
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     kb_accel_default = *data;
-#endif
 }
 
 uint16_t keyball_get_last_speed(void) {
@@ -246,8 +242,6 @@ static uint16_t isqrt16(uint16_t n) {
     return root;
 }
 
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
-
 static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
     uint16_t speed = isqrt16((int16_t)dx * dx + (int16_t)dy * dy);
     if (speed > kb_last_speed) {
@@ -300,9 +294,7 @@ static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t d
     accum->remainder_x = sx - (*out_x << 8);
     accum->remainder_y = sy - (*out_y << 8);
 }
-#endif
 
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE
 static void keyball_accel_apply_simple(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
     // Fixed-Point Simple Algo: output = input * (BASE + SPEED * FACTOR)
     // BASE, FACTOR, MAX are Q8.8
@@ -332,18 +324,17 @@ static void keyball_accel_apply_simple(keyball_motion_t *accum, int8_t dx, int8_
     accum->remainder_x = sx - (*out_x << 8);
     accum->remainder_y = sy - (*out_y << 8);
 }
-#endif
 
 static void apply_acceleration(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
-    keyball_accel_apply_lut(accum, dx, dy, out_x, out_y);
-#elif KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE
-    keyball_accel_apply_simple(accum, dx, dy, out_x, out_y);
-#else
-    // NONE or CUSTOM fallbacks
-    *out_x = dx;
-    *out_y = dy;
-#endif
+    if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT) {
+        keyball_accel_apply_lut(accum, dx, dy, out_x, out_y);
+    } else if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE) {
+        keyball_accel_apply_simple(accum, dx, dy, out_x, out_y);
+    } else {
+        // NONE or CUSTOM fallbacks
+        *out_x = dx;
+        *out_y = dy;
+    }
 }
 #endif
 
@@ -585,142 +576,175 @@ void keyball_oled_render_layerinfo(void) {
 //////////////////////////////////////////////////////////////////////////////
 // RawHID
 
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
 // Command IDs
 enum {
 
-    CMD_SET_CURVE_PT = 0x10,
+    CMD_SET_CURVE_PT  = 0x10,
     CMD_SET_CURVE_ALL = 0x11,
-    CMD_READ_ALL = 0x12,
-    CMD_GET_SPEED = 0x20,
-    CMD_RESET_CONFIG = 0x30
+
+    CMD_READ_ALL      = 0x12,
+
+    CMD_SET_POINTS    = 0x13,
+
+    CMD_GET_SPEED     = 0x20,
+    CMD_RESET_CONFIG  = 0x30
 };
-#endif
+
+// -------------------------------------------------------------------------
+// RawHID Handlers
+// -------------------------------------------------------------------------
+
+static void handle_set_curve_pt(uint8_t *data, uint8_t length) {
+    // [CMD, INDEX, VAL_H, VAL_L, MAX_H, MAX_L]
+    uint8_t idx = data[1];
+    if (idx < ACCEL_LUT_SIZE) {
+        uint16_t val = (data[2] << 8) | data[3];
+        kb_accel.accel_lut.table[idx] = val;
+    }
+    uint16_t max_limit = (data[4] << 8) | data[5];
+    kb_accel.accel_lut.max_speed_limit = max_limit;
+
+    // Extended capability: Gain at index 6,7
+    if (length > 7) {
+            uint16_t gain = (data[6] << 8) | data[7];
+            if (gain > 0) kb_accel.accel_lut.global_gain = gain;
+    }
+}
+
+static void handle_set_curve_all(uint8_t *data, uint8_t length) {
+    // [CMD, START_IDX, COUNT, VAL0_H, VAL0_L, VAL1_H, VAL1_L, ...]
+    uint8_t start_idx = data[1];
+    uint8_t count = data[2];
+    uint8_t offset = 3;
+
+    for (uint8_t i = 0; i < count; i++) {
+        if (start_idx + i < ACCEL_LUT_SIZE && offset + 1 < length) {
+            uint16_t val = (data[offset] << 8) | data[offset+1];
+            kb_accel.accel_lut.table[start_idx + i] = val;
+            offset += 2;
+        }
+    }
+}
+
+static void handle_set_points(uint8_t *data, uint8_t length) {
+    // [CMD, START_IDX, COUNT, VER, P0_X_H, P0_X_L, P0_Y_H, P0_Y_L, ...]
+    uint8_t start_idx = data[1];
+    uint8_t count = data[2];
+    uint8_t offset = 4;
+    kb_accel.accel_lut.algo_version = data[3];    
+
+    if (start_idx + count > kb_accel.accel_lut.num_points) {
+        kb_accel.accel_lut.num_points = start_idx + count;
+    }
+
+    for (uint8_t i = 0; i < count; i++) {
+        if (start_idx + i < ACCEL_MAX_POINTS && offset + 3 < length) {
+            kb_accel.accel_lut.points[start_idx + i].x = (data[offset] << 8) | data[offset+1];
+            offset += 2;
+            kb_accel.accel_lut.points[start_idx + i].y = (data[offset] << 8) | data[offset+1];
+            offset += 2;
+        }
+    }
+}
+
+static void handle_read_all(uint8_t *data) {
+    // [CMD, OFFSET]
+    // Offset 0: Metadata
+    // Offset 1-3: LUT Chunks
+    // Offset 4+: Points Chunks
+    uint8_t offset = data[1];
+    uint8_t report[32];
+    memset(report, 0, 32);
+    report[0] = CMD_READ_ALL;
+    report[1] = offset; // Echo offset
+
+    if (offset == 0) {
+        // Metadata: [0=CMD, 1=OFF, 2..7=LUT_META, 8=MODE]
+        report[2] = (kb_accel.accel_lut.max_speed_limit >> 8) & 0xFF;
+        report[3] = kb_accel.accel_lut.max_speed_limit & 0xFF;
+        report[4] = (kb_accel.accel_lut.global_gain >> 8) & 0xFF;
+        report[5] = kb_accel.accel_lut.global_gain & 0xFF;
+        report[6] = kb_accel.accel_lut.algo_version;
+        report[7] = kb_accel.accel_lut.num_points;
+        report[8] = KEYBALL_ACCEL_MODE;
+    }
+
+    else if (offset >= 4) {
+        // Read Points Chunks
+        uint8_t start = (offset - 4) * 7;
+        uint8_t count = 7;
+
+        if (start >= kb_accel.accel_lut.num_points) count = 0;
+        else if (start + count > kb_accel.accel_lut.num_points) count = kb_accel.accel_lut.num_points - start;
+
+        report[2] = count;
+        uint8_t off = 3;
+        for(uint8_t i=0; i<count; i++) {
+            keyball_point_t *p = &kb_accel.accel_lut.points[start + i];
+            report[off++] = (p->x >> 8) & 0xFF;
+            report[off++] = p->x & 0xFF;
+            report[off++] = (p->y >> 8) & 0xFF;
+            report[off++] = p->y & 0xFF;
+        }
+    } else {
+        // Read LUT Chunks (Offsets 1, 2, 3)
+        uint8_t start = (offset - 1) * 14;
+        uint8_t count = 14;
+
+        if (start >= ACCEL_LUT_SIZE) count = 0;
+        else if (start + count > ACCEL_LUT_SIZE) count = ACCEL_LUT_SIZE - start;
+
+        report[2] = count;
+        uint8_t off = 3;
+        for(uint8_t i=0; i<count; i++) {
+            uint16_t val = kb_accel.accel_lut.table[start+i];
+            report[off++] = (val >> 8) & 0xFF;
+            report[off++] = val & 0xFF;
+        }
+    }
+
+    raw_hid_send(report, 32);
+}
+
+static void handle_get_speed(uint8_t *data, uint8_t length) {
+    data[0] = CMD_GET_SPEED;
+    data[1] = (kb_last_speed >> 8) & 0xFF;
+    data[2] = kb_last_speed & 0xFF;
+    raw_hid_send(data, length);
+    kb_last_speed = 0; // Reset Peak Hold
+}
+
+static void handle_reset_config(void) {
+    kb_accel = kb_accel_default;
+    kb_last_speed = 0;
+}
 
 void raw_hid_receive(uint8_t *data, uint8_t length) {
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     uint8_t cmd = data[0];
 
-    if (cmd == CMD_SET_CURVE_PT) {
-        // [CMD, INDEX, VAL_H, VAL_L, MAX_H, MAX_L]
-        uint8_t idx = data[1];
-        if (idx < ACCEL_LUT_SIZE) {
-            uint16_t val = (data[2] << 8) | data[3];
-            kb_accel.accel_lut.table[idx] = val;
-        }
-        uint16_t max_limit = (data[4] << 8) | data[5];
-        kb_accel.accel_lut.max_speed_limit = max_limit;
+    switch (cmd) {
+        case CMD_SET_CURVE_PT:
+            handle_set_curve_pt(data, length);
+            break;
+        case CMD_SET_CURVE_ALL:
+            handle_set_curve_all(data, length);
+            break;
+        case CMD_SET_POINTS:
+            handle_set_points(data, length);
+            break;
 
-        // Extended capability: Gain at index 6,7
-        if (length > 7) {
-             uint16_t gain = (data[6] << 8) | data[7];
-             if (gain > 0) kb_accel.accel_lut.global_gain = gain;
-        }
+        case CMD_READ_ALL:
+            handle_read_all(data);
+            break;
+        case CMD_GET_SPEED:
+            handle_get_speed(data, length);
+            break;
+        case CMD_RESET_CONFIG:
+            handle_reset_config();
+            break;
+        default:
+            break;
     }
-    else if (cmd == CMD_SET_CURVE_ALL) {
-        // [CMD, START_IDX, COUNT, VAL0_H, VAL0_L, VAL1_H, VAL1_L, ...]
-        uint8_t start_idx = data[1];
-        uint8_t count = data[2];
-        uint8_t offset = 3;
-
-        for (uint8_t i = 0; i < count; i++) {
-            if (start_idx + i < ACCEL_LUT_SIZE && offset + 1 < length) {
-                uint16_t val = (data[offset] << 8) | data[offset+1];
-                kb_accel.accel_lut.table[start_idx + i] = val;
-                offset += 2;
-            }
-        }
-    }
-    else if (cmd == CMD_READ_ALL) {
-        // [CMD, OFFSET]
-        // Offset 0: Metadata [CMD, MAX_H, MAX_L, GAIN_H, GA_L]
-        // Offset 1+: LUT Chunks
-        uint8_t offset = data[1];
-        uint8_t report[32];
-        memset(report, 0, 32);
-        report[0] = CMD_READ_ALL;
-
-        if (offset == 0) {
-            report[1] = 0; // echoed offset
-            report[2] = (kb_accel.accel_lut.max_speed_limit >> 8) & 0xFF;
-            report[3] = kb_accel.accel_lut.max_speed_limit & 0xFF;
-            report[4] = (kb_accel.accel_lut.global_gain >> 8) & 0xFF;
-            report[5] = kb_accel.accel_lut.global_gain & 0xFF;
-            report[6] = kb_accel.accel_lut.algo_version;
-            report[7] = kb_accel.accel_lut.num_points;
-        } else if (offset >= 4) {
-            // Points: 7 points per chunk (4 bytes each = 28 bytes)
-            // Offset 4: 0-6, Offset 5: 7-13, Offset 6: 14-16
-            uint8_t start = (offset - 4) * 7;
-            uint8_t count = 7;
-            if (start >= kb_accel.accel_lut.num_points) count = 0;
-            else if (start + count > kb_accel.accel_lut.num_points) count = kb_accel.accel_lut.num_points - start;
-
-            report[1] = offset;
-            report[2] = count;
-            uint8_t off = 3;
-            for(uint8_t i=0; i<count; i++) {
-                keyball_point_t *p = &kb_accel.accel_lut.points[start + i];
-                report[off++] = (p->x >> 8) & 0xFF; // X High
-                report[off++] = p->x & 0xFF;        // X Low
-                report[off++] = (p->y >> 8) & 0xFF;
-                report[off++] = p->y & 0xFF;
-            }
-        } else {
-            // Page 1: 0..13 (Offset 1)
-            // Page 2: 14..27 (Offset 2)
-            // Page 3: 28..31 (Offset 3)
-            uint8_t start = (offset - 1) * 14;
-            uint8_t count = 14;
-            if (start >= ACCEL_LUT_SIZE) count = 0;
-            else if (start + count > ACCEL_LUT_SIZE) count = ACCEL_LUT_SIZE - start;
-
-            report[1] = offset; // Echo offset
-            report[2] = count;
-            uint8_t off = 3;
-            for(uint8_t i=0; i<count; i++) {
-                uint16_t val = kb_accel.accel_lut.table[start+i];
-                report[off++] = (val >> 8) & 0xFF;
-                report[off++] = val & 0xFF;
-            }
-        }
-        raw_hid_send(report, 32);
-    }
-    else if (cmd == 0x13) { // CMD_SET_POINTS
-        // [CMD, START_IDX, COUNT, VER, P0_X_H, P0_X_L, P0_Y_H, P0_Y_L, ...]
-        uint8_t start_idx = data[1];
-        uint8_t count = data[2];
-        kb_accel.accel_lut.algo_version = data[3];
-
-        uint8_t offset = 4;
-
-        if (start_idx + count > kb_accel.accel_lut.num_points) kb_accel.accel_lut.num_points = start_idx + count;
-
-        for (uint8_t i = 0; i < count; i++) {
-            if (start_idx + i < ACCEL_MAX_POINTS && offset + 3 < length) {
-                kb_accel.accel_lut.points[start_idx + i].x = (data[offset] << 8) | data[offset+1];
-                offset += 2;
-                kb_accel.accel_lut.points[start_idx + i].y = (data[offset] << 8) | data[offset+1];
-                offset += 2;
-            }
-        }
-    }
-    else if (cmd == CMD_GET_SPEED) {
-        // Respond with max speed since last read (Peak Hold)
-        data[0] = CMD_GET_SPEED;
-        data[1] = (kb_last_speed >> 8) & 0xFF;
-        data[2] = kb_last_speed & 0xFF;
-        raw_hid_send(data, length);
-
-        // Reset for next interval
-        kb_last_speed = 0;
-    }
-    else if (cmd == CMD_RESET_CONFIG) {
-        // Restore default configuration from backup
-        kb_accel = kb_accel_default;
-        kb_last_speed = 0;
-    }
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
