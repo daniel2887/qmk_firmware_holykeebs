@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #include "keyball.h"
+#include "pointing_device_accel.h"
 #include "drivers/sensors/pmw33xx_common.h"
 
 #include <string.h>
@@ -65,6 +66,25 @@ static uint16_t kb_last_speed = 0;
 void keyball_set_acceleration_data(const keyball_accel_t *data) {
     kb_accel = *data;
     kb_accel_default = *data;
+
+    // Sync Drashna Config
+    pointing_device_accel_set_takeoff(data->accel_drashna.takeoff);
+    pointing_device_accel_set_growth_rate(data->accel_drashna.growth_rate);
+    pointing_device_accel_set_offset(data->accel_drashna.offset);
+    pointing_device_accel_set_limit(data->accel_drashna.limit);
+}
+
+// Drashna Module Shims
+report_mouse_t pointing_device_task_pointing_device_accel_kb(report_mouse_t mouse_report) {
+    return mouse_report;
+}
+
+bool process_record_pointing_device_accel_kb(uint16_t keycode, keyrecord_t *record) {
+    return true; // Continue processing
+}
+
+void keyboard_post_init_pointing_device_accel_kb(void) {
+    // No-op
 }
 
 uint16_t keyball_get_last_speed(void) {
@@ -325,15 +345,20 @@ static void keyball_accel_apply_simple(keyball_motion_t *accum, int8_t dx, int8_
     accum->remainder_y = sy - (*out_y << 8);
 }
 
-static void apply_acceleration(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
+static void apply_acceleration(keyball_motion_t *accum, report_mouse_t *report, int16_t *out_x, int16_t *out_y) {
     if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT) {
-        keyball_accel_apply_lut(accum, dx, dy, out_x, out_y);
+        keyball_accel_apply_lut(accum, report->x, report->y, out_x, out_y);
     } else if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE) {
-        keyball_accel_apply_simple(accum, dx, dy, out_x, out_y);
+        keyball_accel_apply_simple(accum, report->x, report->y, out_x, out_y);
+    } else if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_DRASHNA) {
+        // Drashna's algorithm manages its own internal state/accumulation
+        report_mouse_t accel = pointing_device_task_pointing_device_accel(*report);
+        *out_x = accel.x;
+        *out_y = accel.y;
     } else {
         // NONE or CUSTOM fallbacks
-        *out_x = dx;
-        *out_y = dy;
+        *out_x = report->x;
+        *out_y = report->y;
     }
 }
 #endif
@@ -341,7 +366,7 @@ static void apply_acceleration(keyball_motion_t *accum, int8_t dx, int8_t dy, in
 static void motion_to_mouse(report_mouse_t *report, report_mouse_t *output, bool is_left, bool as_scroll, keyball_motion_t *accum) {
 #ifdef KEYBALL_POINTER_ACCEL_ENABLE
     int16_t ax, ay;
-    apply_acceleration(accum, report->x, report->y, &ax, &ay);
+    apply_acceleration(accum, report, &ax, &ay);
     accum->x += ax;
     accum->y += ay;
 #else

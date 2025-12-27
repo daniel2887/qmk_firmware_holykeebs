@@ -276,7 +276,8 @@ void keyball_set_cpi(uint16_t cpi);
 // Acceleration Modes
 #define KEYBALL_ACCEL_MODE_SIMPLE 0
 #define KEYBALL_ACCEL_MODE_LUT    1
-#define KEYBALL_ACCEL_MODE_CUSTOM 2
+#define KEYBALL_ACCEL_MODE_DRASHNA 2
+#define KEYBALL_ACCEL_MODE_CUSTOM 3
 
 // Default to LUT if not configured
 #ifndef KEYBALL_ACCEL_MODE
@@ -314,6 +315,12 @@ typedef struct {
             uint16_t factor;   // Q8.8
             uint16_t max;      // Q8.8
         } accel_simple;
+        struct {
+            float takeoff;
+            float growth_rate;
+            float offset;
+            float limit;
+        } accel_drashna;
 
 } keyball_accel_t;
 

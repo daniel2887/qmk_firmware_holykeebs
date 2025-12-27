@@ -207,6 +207,16 @@ void keyboard_post_init_user(void) {
         }
     };
     keyball_set_acceleration_data(&accel_conf);
+#elif KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_DRASHNA
+    const keyball_accel_t accel_conf = {
+        .accel_drashna = {
+            .takeoff     = 2.0f,
+            .growth_rate = 0.25f,
+            .offset      = 2.2f,
+            .limit       = 0.2f
+        }
+    };
+    keyball_set_acceleration_data(&accel_conf);
 #endif
 }
 

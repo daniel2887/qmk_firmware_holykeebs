@@ -193,3 +193,35 @@ However, control points only make sense if the **Interpolation Algorithm** used 
 *   **Key Lesson - Reset Logic**:
     *   **Bug**: Sending `CMD_RESET_CONFIG` resets the firmware but leaves the UI stale.
     *   **Fix**: Always chain a `requestRead(0)` (sync) command after a reset command to force the UI to reflect the new firmware state.
+
+## 12. Drashna Acceleration Integration (Dec 2025)
+
+### A. Non-Intrusive Integration Strategy
+*   **Goal**: Integrate the community `pointing_device_accel` module without modifying its source code, allowing for easy upstream updates.
+*   **Challenges**:
+    *   The module expects QMK hook machinery (`process_record`, `keyboard_post_init` chained calls) which isn't present in our standalone driver environment.
+    *   It references custom keycodes that are not defined in our keymap.
+*   **Solution**: **Shim Architecture**
+    1.  **Original Source**: `lib/keyball/pointing_device_accel.c` is kept byte-identical to the upstream version.
+    2.  **Shim Header**: `lib/keyball/pointing_device_internal.h` acts as a local proxy. It:
+        *   Forwards includes to the real `quantum/pointing_device_internal.h`.
+        *   Provides dummy definitions for the custom keycodes (mapped to safe `QK_USER` range) so the module compiles.
+    3.  **Keyball Glue**: `lib/keyball/keyball.c` implements the necessary hook functions (`_kb` suffixes) as no-ops.
+    4.  **Runtime Config**: Instead of keycodes, we configure the module by writing directly to its internal state structs via `pointing_device_accel_set_*()` functions during `keyball_set_acceleration_data()`.
+
+### B. Configuration & State
+*   **Mode ID**: `KEYBALL_ACCEL_MODE_DRASHNA` (2).
+*   **Parameters**: Added `accel_drashna` struct to `keyball_accel_t`:
+    *   `takeoff`: Minimum speed to start accelerating.
+    *   `growth_rate`: Steepness of the sigmoid curve.
+    *   `offset`: X-axis shift for the curve.
+    *   `limit`: Maximum acceleration factor cap.
+*   **Data Flow**:
+    *   `keymap.c` defines defaults in `keyboard_post_init_user()`.
+    *   `keyball.c` receives the config struct.
+    *   `keyball.c` syncs the values to Drashna's global config using the module's setter API.
+    *   `apply_acceleration()` now dispatches to `pointing_device_task_pointing_device_accel()` which handles its own accumulation and state.
+
+### C. Type Safety Improvements
+*   **Issue**: `clip2int8()` was being used on `report_mouse_t` values.
+*   **Fix**: Removed `clip2int8()`. `report_mouse_t` fields are either `int8_t` or `int16_t` (if extended). Direct assignment is safe and correct; clipping was potentially truncating valid high-speed flick data.

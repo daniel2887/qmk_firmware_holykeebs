@@ -34,6 +34,9 @@ SRC += lib/oledkit/oledkit.c    # OLED utility for Keyball series.
 # Include common library
 SRC += lib/keyball/keyball.c
 
+# Include Drashna's poitner acceleration module
+SRC += lib/keyball/pointing_device_accel.c
+
 # Disable other features to squeeze firmware size
 SPACE_CADET_ENABLE = no
 MAGIC_ENABLE = no

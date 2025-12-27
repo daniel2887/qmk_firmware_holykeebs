@@ -39,5 +39,6 @@
 // options:
 //   KEYBALL_ACCEL_MODE_LUT    (Default) - Advanced 32-point curve, tunable via HTML tool.
 //   KEYBALL_ACCEL_MODE_SIMPLE           - Linear formula: Base + (Speed * Factor).
+//   KEYBALL_ACCEL_MODE_DRASHNA          - Kinetic-style sigmoid curve (Takeoff, Growth, Offset, Limit).
 // See keymap.c, `keyball_accel_t` struct for configuration.
-#define KEYBALL_ACCEL_MODE KEYBALL_ACCEL_MODE_LUT
+#define KEYBALL_ACCEL_MODE KEYBALL_ACCEL_MODE_DRASHNA
