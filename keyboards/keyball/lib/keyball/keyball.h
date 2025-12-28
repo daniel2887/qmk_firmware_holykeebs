@@ -329,25 +329,3 @@ void keyball_set_acceleration_data(const keyball_accel_t *data);
 
 // Get the last measured speed (for visualization)
 uint16_t keyball_get_last_speed(void);
-
-
-
-
-#define ACCEL_LUT_DEFAULT { \
-    .accel_lut = { \
-        .table = { \
-            102, 120, 138, 156, 175, 193, 211, 229, \
-            247, 265, 283, 301, 319, 337, 355, 373, \
-            400, 441, 483, 525, 566, 608, 649, 691, \
-            733, 774, 816, 858, 899, 941, 982, 1024 \
-        }, \
-        .max_speed_limit = 1200, \
-        .global_gain = 256, \
-        .algo_version = ACCEL_ALGO_VER_1, \
-        .num_points = 2, \
-        .points = { {0, 102}, {32512, 1024} } \
-    } \
-}
-
-
-

@@ -59,7 +59,48 @@ keyball_t keyball = {
 
 // Acceleration Tuning Globals
 static keyball_accel_t kb_accel = {0}; // Initialize with zeros, will be set by keymap
-static keyball_accel_t kb_accel_default = ACCEL_LUT_DEFAULT;
+static keyball_accel_t kb_accel_default = {
+    .accel_lut = {
+        .table = {
+            48, 206, 1204, 1680, 1783, 1783, 1783, 1783,
+            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+            1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+        },
+        .max_speed_limit = 1920, // Safety Cap
+        .global_gain = 256,      // 1.00x Sensitivity
+        .algo_version = 1,
+        .num_points = 7,
+        .points = {
+            {0, 48},
+            {778, 71},
+            {1318, 495},
+            {1858, 1063},
+            {2884, 1620},
+            {3820, 1783},
+            {12800, 1783}
+        }
+    },
+    .accel_simple = {
+        // Base sensitivity (0.0 - 1.0 for dampening).
+        // Lower this value (e.g. 0.3) to make slow movements much slower/more precise.
+        .base   = Q88(0.4),
+
+        // Acceleration rate per count of speed.
+        // Increase this to make the cursor accelerate more aggressively as you move faster.
+        .factor = Q88(0.10),
+
+        // Maximum sensitivity multiplier.
+        // Increase this if you want to cover more distance (e.g. multiple monitors) when flinging.
+        .max    = Q88(6.0)
+    },
+    .accel_drashna = {
+        .takeoff     = 2.0f,
+        .growth_rate = 0.25f,
+        .offset      = 2.2f,
+        .limit       = 0.2f
+    }
+};
 
 static uint16_t kb_last_speed = 0;
 
@@ -244,8 +285,6 @@ __attribute__((weak)) void keyball_on_apply_motion_to_mouse_scroll(report_mouse_
 #endif
 }
 
-#ifdef KEYBALL_POINTER_ACCEL_ENABLE
-
 static uint16_t isqrt16(uint16_t n) {
     uint16_t root = 0;
     uint16_t bit = 1 << 14;
@@ -361,7 +400,6 @@ static void apply_acceleration(keyball_motion_t *accum, report_mouse_t *report, 
         *out_y = report->y;
     }
 }
-#endif
 
 static void motion_to_mouse(report_mouse_t *report, report_mouse_t *output, bool is_left, bool as_scroll, keyball_motion_t *accum) {
 #ifdef KEYBALL_POINTER_ACCEL_ENABLE

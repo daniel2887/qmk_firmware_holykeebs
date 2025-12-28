@@ -165,7 +165,6 @@ void keyboard_post_init_user(void) {
     keyball_set_scrollsnap_mode(KEYBALL_SCROLLSNAP_MODE_FREE);
     set_auto_mouse_enable(true);
 
-#if KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT
     const keyball_accel_t accel_conf = {
         .accel_lut = {
             .table = {
@@ -187,11 +186,7 @@ void keyboard_post_init_user(void) {
                 {3820, 1783},
                 {12800, 1783}
             }
-        }
-    };
-    keyball_set_acceleration_data(&accel_conf);
-#elif KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE
-    const keyball_accel_t accel_conf = {
+        },
         .accel_simple = {
             // Base sensitivity (0.0 - 1.0 for dampening).
             // Lower this value (e.g. 0.3) to make slow movements much slower/more precise.
@@ -204,11 +199,7 @@ void keyboard_post_init_user(void) {
             // Maximum sensitivity multiplier.
             // Increase this if you want to cover more distance (e.g. multiple monitors) when flinging.
             .max    = Q88(6.0)
-        }
-    };
-    keyball_set_acceleration_data(&accel_conf);
-#elif KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_DRASHNA
-    const keyball_accel_t accel_conf = {
+        },
         .accel_drashna = {
             .takeoff     = 2.0f,
             .growth_rate = 0.25f,
@@ -217,7 +208,6 @@ void keyboard_post_init_user(void) {
         }
     };
     keyball_set_acceleration_data(&accel_conf);
-#endif
 }
 
 bool caps_word_press_user(uint16_t keycode) {
