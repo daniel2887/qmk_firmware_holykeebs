@@ -98,7 +98,8 @@ static keyball_accel_t kb_accel_default = {
         .takeoff     = 2.0f,
         .growth_rate = 0.25f,
         .offset      = 2.2f,
-        .limit       = 0.2f
+        .limit       = 0.2f,
+        .limit_upper = 1.0f
     }
 };
 
@@ -112,6 +113,7 @@ static void keyball_set_acceleration_data(const keyball_accel_t *data) {
     pointing_device_accel_set_growth_rate(data->accel_drashna.growth_rate);
     pointing_device_accel_set_offset(data->accel_drashna.offset);
     pointing_device_accel_set_limit(data->accel_drashna.limit);
+    pointing_device_accel_set_limit_upper(data->accel_drashna.limit_upper);
 }
 
 void keyball_set_default_acceleration_data(const keyball_accel_t *data) {
@@ -804,6 +806,9 @@ static void handle_set_drashna(uint8_t *data) {
      conv.b[0] = data[13]; conv.b[1] = data[14]; conv.b[2] = data[15]; conv.b[3] = data[16];
      kb_accel.accel_drashna.limit = conv.f;
 
+     conv.b[0] = data[17]; conv.b[1] = data[18]; conv.b[2] = data[19]; conv.b[3] = data[20];
+     kb_accel.accel_drashna.limit_upper = conv.f;
+
      keyball_set_acceleration_data(&kb_accel);
 }
 
@@ -826,6 +831,9 @@ static void handle_get_drashna(uint8_t *data) {
     conv.f = kb_accel.accel_drashna.limit;
     report[13] = conv.b[0]; report[14] = conv.b[1]; report[15] = conv.b[2]; report[16] = conv.b[3];
 
+    conv.f = kb_accel.accel_drashna.limit_upper;
+    report[17] = conv.b[0]; report[18] = conv.b[1]; report[19] = conv.b[2]; report[20] = conv.b[3];
+
     raw_hid_send(report, 32);
 }
 
@@ -838,6 +846,7 @@ static void handle_reset_config(void) {
     pointing_device_accel_set_growth_rate(kb_accel.accel_drashna.growth_rate);
     pointing_device_accel_set_offset(kb_accel.accel_drashna.offset);
     pointing_device_accel_set_limit(kb_accel.accel_drashna.limit);
+    pointing_device_accel_set_limit_upper(kb_accel.accel_drashna.limit_upper);
 
     kb_last_speed = 0;
 }

@@ -56,6 +56,15 @@ void pointing_device_accel_set_limit(float val) {
     }
 }
 
+float pointing_device_accel_get_limit_upper(void) {
+    return g_pointing_device_accel_config.limit_upper;
+}
+
+void pointing_device_accel_set_limit_upper(float val) {
+    g_pointing_device_accel_config.limit_upper = val;
+    pointing_device_config_update(&g_pointing_device_accel_config);
+}
+
 void pointing_device_accel_enabled(bool enable) {
     g_pointing_device_accel_config.enabled = enable;
     pointing_device_config_update(&g_pointing_device_accel_config);
@@ -117,8 +126,8 @@ report_mouse_t pointing_device_task_pointing_device_accel(report_mouse_t mouse_r
     // acceleration factor: f(v) = 1 - (1 - M) / {1 + e^[K(v - S)]}^(G/K):
     // Generalised Sigmoid Function, see https://www.desmos.com/calculator/k9vr0y2gev
     const float pointing_device_accel_factor =
-        POINTING_DEVICE_ACCEL_LIMIT_UPPER -
-        (POINTING_DEVICE_ACCEL_LIMIT_UPPER - m) / powf(1 + expf(k * (velocity - s)), g / k);
+        g_pointing_device_accel_config.limit_upper -
+        (g_pointing_device_accel_config.limit_upper - m) / powf(1 + expf(k * (velocity - s)), g / k);
     // multiply mouse reports by acceleration factor, and account for previous quantization errors:
     const float new_x = rounding_carry_x + pointing_device_accel_factor * mouse_report.x;
     const float new_y = rounding_carry_y + pointing_device_accel_factor * mouse_report.y;
@@ -230,6 +239,7 @@ __attribute__((weak)) void pointing_device_config_read(pointing_device_accel_con
         .offset      = POINTING_DEVICE_ACCEL_OFFSET,
         .limit       = POINTING_DEVICE_ACCEL_LIMIT,
         .takeoff     = POINTING_DEVICE_ACCEL_TAKEOFF,
+        .limit_upper = POINTING_DEVICE_ACCEL_LIMIT_UPPER,
         .enabled     = true,
     };
 }
@@ -252,6 +262,7 @@ void eeconfig_init_pointing_device(void) {
         .offset      = POINTING_DEVICE_ACCEL_OFFSET,
         .limit       = POINTING_DEVICE_ACCEL_LIMIT,
         .takeoff     = POINTING_DEVICE_ACCEL_TAKEOFF,
+        .limit_upper = POINTING_DEVICE_ACCEL_LIMIT_UPPER,
         .enabled     = true,
     };
     // Write default value to EEPROM now
@@ -279,8 +290,8 @@ void pointing_device_accel_plot_curve(uint8_t graph[], uint8_t graph_size) {
 
     for (uint8_t velocity = 0; velocity < graph_size; velocity++) {
         graph[velocity] =
-            (uint8_t)((POINTING_DEVICE_ACCEL_LIMIT_UPPER -
-                       (POINTING_DEVICE_ACCEL_LIMIT_UPPER - m) / powf(1 + expf(k * (velocity - s)), g / k)) *
+            (uint8_t)((g_pointing_device_accel_config.limit_upper -
+                       (g_pointing_device_accel_config.limit_upper - m) / powf(1 + expf(k * (velocity - s)), g / k)) *
                       100.0f);
         pd_dprintf("PDACCEL: velocity: %3i, factor: %3d\n", velocity, graph[velocity]);
     }

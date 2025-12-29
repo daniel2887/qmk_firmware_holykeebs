@@ -369,10 +369,14 @@
                 <div class="instructions">
                     <strong>Drashna Acceleration Tuning:</strong><br>
                     Adjust the parameters below to shape the sigmoid acceleration curve.<br>
-                    <strong>Takeoff</strong>: Speed threshold where acceleration begins.<br>
-                    <strong>Growth</strong>: Steepness of the acceleration curve.<br>
-                    <strong>Offset</strong>: Shift the curve along the X-axis.<br>
-                    <strong>Limit</strong>: Minimum acceleration factor (at low speeds).
+                    <ul style="margin: 5px 0 0 20px; padding: 0;">
+                        <li><strong>Takeoff</strong>: Speed threshold where acceleration begins. The Sigmoid's slope.
+                        </li>
+                        <li><strong>Growth</strong>: Steepness of the acceleration curve. The Sigmoid's curvature.</li>
+                        <li><strong>Offset</strong>: Shift the curve along the X-axis.</li>
+                        <li><strong>Lower Limit</strong>: Minimum acceleration factor. The Sigmoid's Y-intercept.</li>
+                        <li><strong>Upper Limit</strong>: Maximum acceleration factor.</li>
+                    </ul>
                 </div>
 
                 <div
@@ -417,39 +421,49 @@
                                 value="2.2">
                         </div>
 
-                        <!-- Limit -->
+                        <!-- Lower Limit -->
                         <div>
                             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                                <label style="font-size:0.9rem; color:#ccc;">Limit (Min)</label>
+                                <label style="font-size:0.9rem; color:#ccc;">Lower Limit (Min)</label>
                                 <span id="valLimit" style="font-family:monospace;">0.20</span>
                             </div>
                             <input type="range" id="rngLimit" min="0.01" max="5.0" step="0.01" style="width:100%"
                                 value="0.2">
                         </div>
-                    </div>
 
-                    <div style="display:flex; align-items:center; gap: 15px; margin-top: 10px;">
-                        <div style="display:flex; align-items:center;">
-                            <label style="margin-right:10px; font-size:0.9rem;">View Max Raw:</label>
-                            <input type="number" id="drashnaMaxRaw" value="127" min="20" max="127" style="width:60px;">
+                        <!-- Upper Limit -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <label style="font-size:0.9rem; color:#ccc;">Upper Limit (Max)</label>
+                                <span id="valLimitUpper" style="font-family:monospace;">1.00</span>
+                            </div>
+                            <input type="range" id="rngLimitUpper" min="0.1" max="10.0" step="0.1" style="width:100%"
+                                value="1.0">
                         </div>
-                        <button id="btnDrashnaReset" style="font-size:0.85rem;">Reset to FW Defaults</button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Unsupported / Info View -->
-            <div id="viewUnsupported"
-                style="display:none; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #888; text-align: center;">
-                <h2 style="color: var(--text); margin-bottom: 10px;">Configuration Not Supported</h2>
-                <p style="max-width: 400px; line-height: 1.6;">
-                    The connected keyboard is using an acceleration algorithm (<strong id="algoName">Unknown</strong>)
-                    that is not supported by this tuner.
-                </p>
-                <p style="font-size: 0.9rem; color: #666;">
-                    Visualizer (Raw/Factor) may still work if supported by firmware.
-                </p>
+                <div style="display:flex; align-items:center; gap: 15px; margin-top: 10px;">
+                    <div style="display:flex; align-items:center;">
+                        <label style="margin-right:10px; font-size:0.9rem;">View Max Raw:</label>
+                        <input type="number" id="drashnaMaxRaw" value="127" min="20" max="127" style="width:60px;">
+                    </div>
+                    <button id="btnDrashnaReset" style="font-size:0.85rem;">Reset to FW Defaults</button>
+                </div>
             </div>
+        </div>
+
+        <!-- Unsupported / Info View -->
+        <div id="viewUnsupported"
+            style="display:none; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #888; text-align: center;">
+            <h2 style="color: var(--text); margin-bottom: 10px;">Configuration Not Supported</h2>
+            <p style="max-width: 400px; line-height: 1.6;">
+                The connected keyboard is using an acceleration algorithm (<strong id="algoName">Unknown</strong>)
+                that is not supported by this tuner.
+            </p>
+            <p style="font-size: 0.9rem; color: #666;">
+                Visualizer (Raw/Factor) may still work if supported by firmware.
+            </p>
         </div>
 
         <div class="status-panel">
@@ -516,7 +530,8 @@
             takeoff: 2.0,
             growth: 0.25,
             offset: 2.2,
-            limit: 0.2
+            limit: 0.2,
+            limit_upper: 1.0
         };
 
         const canvas = document.getElementById('curveCanvas');
@@ -1498,8 +1513,9 @@
                 drashnaParams.growth = view.getFloat32(5, true);
                 drashnaParams.offset = view.getFloat32(9, true);
                 drashnaParams.limit = view.getFloat32(13, true);
+                drashnaParams.limit_upper = view.getFloat32(17, true);
 
-                logDebug(`RX Drashna: T=${drashnaParams.takeoff.toFixed(2)} G=${drashnaParams.growth.toFixed(2)} O=${drashnaParams.offset.toFixed(2)} L=${drashnaParams.limit.toFixed(2)}`);
+                logDebug(`RX Drashna: T=${drashnaParams.takeoff.toFixed(2)} G=${drashnaParams.growth.toFixed(2)} O=${drashnaParams.offset.toFixed(2)} L=${drashnaParams.limit.toFixed(2)} U=${drashnaParams.limit_upper.toFixed(2)}`);
 
                 // Update UI
                 if (document.getElementById('rngTakeoff')) {
@@ -1514,6 +1530,9 @@
 
                     document.getElementById('rngLimit').value = drashnaParams.limit;
                     document.getElementById('valLimit').innerText = drashnaParams.limit.toFixed(2);
+
+                    document.getElementById('rngLimitUpper').value = drashnaParams.limit_upper;
+                    document.getElementById('valLimitUpper').innerText = drashnaParams.limit_upper.toFixed(2);
                 }
                 drawDrashna();
                 updateConfigOutputDrashna();
@@ -1751,7 +1770,7 @@
             const g = drashnaParams.growth;
             const s = drashnaParams.offset;
             const m = drashnaParams.limit;
-            const upper = 1.0;
+            const upper = drashnaParams.limit_upper;
 
             // Calc max factor at large V just in case curve goes up
             // Or just check maxRaw. Sigmoid is monotonic.
@@ -1962,6 +1981,7 @@
             view.setFloat32(5, drashnaParams.growth, true);
             view.setFloat32(9, drashnaParams.offset, true);
             view.setFloat32(13, drashnaParams.limit, true);
+            view.setFloat32(17, drashnaParams.limit_upper, true);
 
             await device.sendReport(0, report);
             updateConfigOutputDrashna();
@@ -1975,23 +1995,28 @@
     .takeoff     = ${c.takeoff.toFixed(2)}f,
     .growth_rate = ${c.growth.toFixed(2)}f,
     .offset      = ${c.offset.toFixed(2)}f,
-    .limit       = ${c.limit.toFixed(2)}f
+    .limit       = ${c.limit.toFixed(2)}f,
+    .limit_upper = ${c.limit_upper.toFixed(2)}f
 }`;
             const out = document.getElementById('configOutput');
             if (out) out.innerText = txt;
         }
 
         // Drashna UI Listeners
-        ['Takeoff', 'Growth', 'Offset', 'Limit'].forEach(key => {
+        // Drashna UI Listeners
+        ['Takeoff', 'Growth', 'Offset', 'Limit', 'LimitUpper'].forEach(key => {
             const el = document.getElementById('rng' + key);
             const disp = document.getElementById('val' + key);
             if (el) {
                 el.addEventListener('input', (e) => {
                     const val = parseFloat(e.target.value);
-                    drashnaParams[key.toLowerCase()] = val;
+                    let prop = key.toLowerCase();
+                    if (key === 'LimitUpper') prop = 'limit_upper';
+
+                    drashnaParams[prop] = val;
                     if (disp) disp.innerText = val.toFixed(2);
                     drawDrashna();
-                    updateConfigOutput();
+                    updateConfigOutputDrashna(); // Fixed call (was updateConfigOutput which is for LUT)
                     sendDrashnaConfig();
                 });
             }

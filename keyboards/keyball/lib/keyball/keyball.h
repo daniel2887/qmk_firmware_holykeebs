@@ -320,6 +320,7 @@ typedef struct {
             float growth_rate;
             float offset;
             float limit;
+            float limit_upper;
         } accel_drashna;
 
 } keyball_accel_t;

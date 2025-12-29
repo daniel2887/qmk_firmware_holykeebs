@@ -55,6 +55,7 @@ typedef struct pointing_device_accel_config_t {
     float offset;
     float limit;
     float takeoff;
+    float limit_upper;
 } pointing_device_accel_config_t;
 
 extern pointing_device_accel_config_t g_pointing_device_accel_config;
@@ -82,6 +83,9 @@ void  pointing_device_accel_offset_increment(void);
 float pointing_device_accel_get_limit(void);
 void  pointing_device_accel_set_limit(float val);
 void  pointing_device_accel_set_limit_increment(void);
+
+void pointing_device_accel_set_limit_upper(float val);
+float pointing_device_accel_get_limit_upper(void);
 
 void pointing_device_config_update(pointing_device_accel_config_t *config);
 void pointing_device_config_read(pointing_device_accel_config_t *config);

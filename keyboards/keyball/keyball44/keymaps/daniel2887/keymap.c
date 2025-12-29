@@ -161,6 +161,7 @@ void matrix_init_user(void) {
 }
 
 void keyboard_post_init_user(void) {
+    //debug_enable=true;
     // Override EEPROM settings to ensure scroll snapping is disabled by default
     keyball_set_scrollsnap_mode(KEYBALL_SCROLLSNAP_MODE_FREE);
     set_auto_mouse_enable(true);
@@ -201,10 +202,11 @@ void keyboard_post_init_user(void) {
             .max    = Q88(6.0)
         },
         .accel_drashna = {
-            .takeoff     = 2.0f,
-            .growth_rate = 0.25f,
-            .offset      = 2.2f,
-            .limit       = 0.2f
+            .takeoff     = 0.9f,
+            .growth_rate = 0.30f,
+            .offset      = 7.21f,
+            .limit       = 0.23f,
+            .limit_upper = 6.0f
         }
     };
 
