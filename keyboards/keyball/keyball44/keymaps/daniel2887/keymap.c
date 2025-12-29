@@ -207,7 +207,8 @@ void keyboard_post_init_user(void) {
             .limit       = 0.2f
         }
     };
-    keyball_set_acceleration_data(&accel_conf);
+
+    keyball_set_default_acceleration_data(&accel_conf);
 }
 
 bool caps_word_press_user(uint16_t keycode) {

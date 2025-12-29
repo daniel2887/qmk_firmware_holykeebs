@@ -104,15 +104,19 @@ static keyball_accel_t kb_accel_default = {
 
 static uint16_t kb_last_speed = 0;
 
-void keyball_set_acceleration_data(const keyball_accel_t *data) {
+static void keyball_set_acceleration_data(const keyball_accel_t *data) {
     kb_accel = *data;
-    kb_accel_default = *data;
 
     // Sync Drashna Config
     pointing_device_accel_set_takeoff(data->accel_drashna.takeoff);
     pointing_device_accel_set_growth_rate(data->accel_drashna.growth_rate);
     pointing_device_accel_set_offset(data->accel_drashna.offset);
     pointing_device_accel_set_limit(data->accel_drashna.limit);
+}
+
+void keyball_set_default_acceleration_data(const keyball_accel_t *data) {
+    kb_accel_default = *data;
+    keyball_set_acceleration_data(data);
 }
 
 // Drashna Module Shims
@@ -126,10 +130,6 @@ bool process_record_pointing_device_accel_kb(uint16_t keycode, keyrecord_t *reco
 
 void keyboard_post_init_pointing_device_accel_kb(void) {
     // No-op
-}
-
-uint16_t keyball_get_last_speed(void) {
-    return kb_last_speed;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -390,6 +390,13 @@ static void apply_acceleration(keyball_motion_t *accum, report_mouse_t *report, 
     } else if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE) {
         keyball_accel_apply_simple(accum, report->x, report->y, out_x, out_y);
     } else if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_DRASHNA) {
+        // Track speed for tuner visualization
+        // TODO: refactor this and make this computation generic across the 3 accel modes
+        uint16_t speed = isqrt16((int16_t)report->x * report->x + (int16_t)report->y * report->y);        
+        if (speed > kb_last_speed) {
+            kb_last_speed = speed;
+        }
+
         // Drashna's algorithm manages its own internal state/accumulation
         report_mouse_t accel = pointing_device_task_pointing_device_accel(*report);
         *out_x = accel.x;
@@ -650,7 +657,10 @@ enum {
     CMD_SET_POINTS    = 0x13,
 
     CMD_GET_SPEED     = 0x20,
-    CMD_RESET_CONFIG  = 0x30
+    CMD_RESET_CONFIG  = 0x30,
+
+    CMD_SET_DRASHNA   = 0x40,
+    CMD_GET_DRASHNA   = 0x41
 };
 
 // -------------------------------------------------------------------------
@@ -777,8 +787,58 @@ static void handle_get_speed(uint8_t *data, uint8_t length) {
     kb_last_speed = 0; // Reset Peak Hold
 }
 
+static void handle_set_drashna(uint8_t *data) {
+    // [CMD, TKO_0, TKO_1, TKO_2, TKO_3, GR_0, ..., OFS_0, ..., LIM_0, ...]
+    // Little Endian float (4 bytes)
+    union { float f; uint8_t b[4]; } conv;
+
+     conv.b[0] = data[1]; conv.b[1] = data[2]; conv.b[2] = data[3]; conv.b[3] = data[4];
+     kb_accel.accel_drashna.takeoff = conv.f;
+
+     conv.b[0] = data[5]; conv.b[1] = data[6]; conv.b[2] = data[7]; conv.b[3] = data[8];
+     kb_accel.accel_drashna.growth_rate = conv.f;
+
+     conv.b[0] = data[9]; conv.b[1] = data[10]; conv.b[2] = data[11]; conv.b[3] = data[12];
+     kb_accel.accel_drashna.offset = conv.f;
+
+     conv.b[0] = data[13]; conv.b[1] = data[14]; conv.b[2] = data[15]; conv.b[3] = data[16];
+     kb_accel.accel_drashna.limit = conv.f;
+
+     keyball_set_acceleration_data(&kb_accel);
+}
+
+static void handle_get_drashna(uint8_t *data) {
+    uint8_t report[32];
+    memset(report, 0, 32);
+    report[0] = CMD_GET_DRASHNA;
+
+    union { float f; uint8_t b[4]; } conv;
+
+    conv.f = kb_accel.accel_drashna.takeoff;
+    report[1] = conv.b[0]; report[2] = conv.b[1]; report[3] = conv.b[2]; report[4] = conv.b[3];
+
+    conv.f = kb_accel.accel_drashna.growth_rate;
+    report[5] = conv.b[0]; report[6] = conv.b[1]; report[7] = conv.b[2]; report[8] = conv.b[3];
+
+    conv.f = kb_accel.accel_drashna.offset;
+    report[9] = conv.b[0]; report[10] = conv.b[1]; report[11] = conv.b[2]; report[12] = conv.b[3];
+
+    conv.f = kb_accel.accel_drashna.limit;
+    report[13] = conv.b[0]; report[14] = conv.b[1]; report[15] = conv.b[2]; report[16] = conv.b[3];
+
+    raw_hid_send(report, 32);
+}
+
+// TODO: refactor this and keyball_set_acceleration_data(), they do much the same thing
 static void handle_reset_config(void) {
     kb_accel = kb_accel_default;
+
+    // Sync Drashna Config
+    pointing_device_accel_set_takeoff(kb_accel.accel_drashna.takeoff);
+    pointing_device_accel_set_growth_rate(kb_accel.accel_drashna.growth_rate);
+    pointing_device_accel_set_offset(kb_accel.accel_drashna.offset);
+    pointing_device_accel_set_limit(kb_accel.accel_drashna.limit);
+
     kb_last_speed = 0;
 }
 
@@ -794,6 +854,12 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
             break;
         case CMD_SET_POINTS:
             handle_set_points(data, length);
+            break;
+        case CMD_SET_DRASHNA:
+            handle_set_drashna(data);
+            break;
+        case CMD_GET_DRASHNA:
+            handle_get_drashna(data);
             break;
 
         case CMD_READ_ALL:
@@ -896,6 +962,8 @@ void keyboard_post_init_kb(void) {
 
     keyball_on_adjust_layout(KEYBALL_ADJUST_PENDING);
     keyboard_post_init_user();
+
+    pointing_device_accel_enabled(KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_DRASHNA);
 }
 
 #ifdef SPLIT_KEYBOARD

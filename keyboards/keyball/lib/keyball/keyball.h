@@ -324,8 +324,5 @@ typedef struct {
 
 } keyball_accel_t;
 
-// Update the acceleration configuration
-void keyball_set_acceleration_data(const keyball_accel_t *data);
-
-// Get the last measured speed (for visualization)
-uint16_t keyball_get_last_speed(void);
+// Update the default acceleration configuration (and current)
+void keyball_set_default_acceleration_data(const keyball_accel_t *data);

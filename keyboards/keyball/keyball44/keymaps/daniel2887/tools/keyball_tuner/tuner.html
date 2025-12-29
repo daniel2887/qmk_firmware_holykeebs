@@ -364,6 +364,80 @@
                 </div>
             </div>
 
+            <!-- Drashna View -->
+            <div id="viewDrashna" style="width: 100%; display: none; flex-direction: column;">
+                <div class="instructions">
+                    <strong>Drashna Acceleration Tuning:</strong><br>
+                    Adjust the parameters below to shape the sigmoid acceleration curve.<br>
+                    <strong>Takeoff</strong>: Speed threshold where acceleration begins.<br>
+                    <strong>Growth</strong>: Steepness of the acceleration curve.<br>
+                    <strong>Offset</strong>: Shift the curve along the X-axis.<br>
+                    <strong>Limit</strong>: Minimum acceleration factor (at low speeds).
+                </div>
+
+                <div
+                    style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; padding-left: 5px;">
+                    <h3>Acceleration Curve (Sigmoid)</h3>
+                </div>
+
+                <div class="canvas-wrapper">
+                    <canvas id="drashnaCanvas"></canvas>
+                </div>
+
+                <div class="controls" style="display: flex; flex-direction: column; gap: 15px; width: 100%;">
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%;">
+                        <!-- Takeoff -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <label style="font-size:0.9rem; color:#ccc;">Takeoff</label>
+                                <span id="valTakeoff" style="font-family:monospace;">2.00</span>
+                            </div>
+                            <input type="range" id="rngTakeoff" min="0.1" max="50.0" step="0.1" style="width:100%"
+                                value="2.0">
+                        </div>
+
+                        <!-- Growth -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <label style="font-size:0.9rem; color:#ccc;">Growth Rate</label>
+                                <span id="valGrowth" style="font-family:monospace;">0.25</span>
+                            </div>
+                            <input type="range" id="rngGrowth" min="0.01" max="10.0" step="0.01" style="width:100%"
+                                value="0.25">
+                        </div>
+
+                        <!-- Offset -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <label style="font-size:0.9rem; color:#ccc;">Offset</label>
+                                <span id="valOffset" style="font-family:monospace;">2.20</span>
+                            </div>
+                            <input type="range" id="rngOffset" min="0.0" max="10.0" step="0.1" style="width:100%"
+                                value="2.2">
+                        </div>
+
+                        <!-- Limit -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <label style="font-size:0.9rem; color:#ccc;">Limit (Min)</label>
+                                <span id="valLimit" style="font-family:monospace;">0.20</span>
+                            </div>
+                            <input type="range" id="rngLimit" min="0.01" max="5.0" step="0.01" style="width:100%"
+                                value="0.2">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap: 15px; margin-top: 10px;">
+                        <div style="display:flex; align-items:center;">
+                            <label style="margin-right:10px; font-size:0.9rem;">View Max Raw:</label>
+                            <input type="number" id="drashnaMaxRaw" value="127" min="20" max="127" style="width:60px;">
+                        </div>
+                        <button id="btnDrashnaReset" style="font-size:0.85rem;">Reset to FW Defaults</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Unsupported / Info View -->
             <div id="viewUnsupported"
                 style="display:none; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #888; text-align: center;">
@@ -414,7 +488,11 @@
         const KEYBALL_ACCEL_MODE_DISCONNECTED = -1;
         const KEYBALL_ACCEL_MODE_SIMPLE = 0;
         const KEYBALL_ACCEL_MODE_LUT = 1;
-        const KEYBALL_ACCEL_MODE_CUSTOM = 2;
+        const KEYBALL_ACCEL_MODE_DRASHNA = 2;
+        const KEYBALL_ACCEL_MODE_CUSTOM = 3;
+
+        const CMD_SET_DRASHNA = 0x40;
+        const CMD_GET_DRASHNA = 0x41;
 
         const LUT_SIZE = 32;
         let device = null;
@@ -427,16 +505,24 @@
         let cursorState = { currentX: 0, targetX: 0 }; // For smoothing visualizer
         let gestureHistory = []; // For ghost trail
         let lastGestureTime = 0;
+        let pollingInterval = null;
 
         // State to track if we are connected.
         // We always show the curve now, but we label it.
 
+        let currentMode = KEYBALL_ACCEL_MODE_DISCONNECTED;
+
+        let drashnaParams = {
+            takeoff: 2.0,
+            growth: 0.25,
+            offset: 2.2,
+            limit: 0.2
+        };
+
         const canvas = document.getElementById('curveCanvas');
         const ctx = canvas.getContext('2d');
-        let width, height;
-        let draggingPoint = null;
-        let pollingInterval = null;
-        let currentMode = KEYBALL_ACCEL_MODE_DISCONNECTED;
+        const drashnaCanvas = document.getElementById('drashnaCanvas');
+        const dCtx = drashnaCanvas.getContext('2d');
 
         function updateModeUI(mode) {
             currentMode = mode;
@@ -448,6 +534,7 @@
                 const names = {
                     [KEYBALL_ACCEL_MODE_SIMPLE]: "Simple (Legacy)",
                     [KEYBALL_ACCEL_MODE_LUT]: "LUT (Curve)",
+                    [KEYBALL_ACCEL_MODE_DRASHNA]: "Drashna (Sigmoid)",
                     [KEYBALL_ACCEL_MODE_CUSTOM]: "Custom"
                 };
                 name = names[mode] || `Unknown (${mode})`;
@@ -457,16 +544,23 @@
             if (document.getElementById('algoName')) document.getElementById('algoName').innerText = name;
 
             const isLUT = (mode === KEYBALL_ACCEL_MODE_LUT);
+            const isDrashna = (mode === KEYBALL_ACCEL_MODE_DRASHNA);
             const isDisconnected = (mode === KEYBALL_ACCEL_MODE_DISCONNECTED);
 
             document.getElementById('viewLanding').style.display = isDisconnected ? 'flex' : 'none';
             document.getElementById('viewLUT').style.display = isLUT ? 'flex' : 'none';
-            document.getElementById('viewUnsupported').style.display = (!isDisconnected && !isLUT) ? 'flex' : 'none';
+            document.getElementById('viewDrashna').style.display = isDrashna ? 'flex' : 'none';
+            document.getElementById('viewUnsupported').style.display = (!isDisconnected && !isLUT && !isDrashna) ? 'flex' : 'none';
             document.querySelector('.status-panel').style.display = isDisconnected ? 'none' : 'flex';
 
             if (isLUT) {
                 // Canvas needs a resize/draw after becoming visible
                 setTimeout(resize, 50);
+            }
+            if (isDrashna) {
+                setTimeout(resizeDrashna, 50);
+                requestDrashnaConfig(); // Fetch params
+                updateConfigOutput(); // Force update snippet immediately
             }
         }
 
@@ -899,12 +993,26 @@
         }
 
         function updateConfigOutput(lut) {
+            if (currentMode === KEYBALL_ACCEL_MODE_DRASHNA) {
+                const c = drashnaParams;
+                const txt = `// Paste into keymap.c 'keyball_accel_t' struct:
+.accel_drashna = {
+    .takeoff     = ${c.takeoff.toFixed(2)}f,
+    .growth_rate = ${c.growth.toFixed(2)}f,
+    .offset      = ${c.offset.toFixed(2)}f,
+    .limit       = ${c.limit.toFixed(2)}f
+}`;
+                document.getElementById('configOutput').innerText = txt;
+                return;
+            }
+
             const fixedLut = lut.map(v => Math.round(v * 256));
             const maxLimit = Math.round(getMaxScale() * 256);
 
             let cCode = `// Put this in your keymap.c\n`;
             cCode += `const keyball_accel_t accel_conf = {\n`;
             cCode += `  .lut = {\n    `;
+            cCode += ` .table = { \n    `;
             fixedLut.forEach((v, i) => {
                 cCode += `${v},${(i + 1) % 8 === 0 ? '\n    ' : ' '}`;
             });
@@ -919,8 +1027,9 @@
                 if (i < points.length - 1) cCode += `, `;
             });
             cCode += ` }\n`;
+            cCode += ` }\n`; // close lut
             cCode += `};\n\n`;
-            cCode += `// Usage: keyball_set_acceleration_data(&accel_conf);`;
+            cCode += `// Usage: keyball_set_default_acceleration_data(&accel_conf);`;
             document.getElementById('configOutput').innerText = cCode;
         }
 
@@ -1382,6 +1491,33 @@
                     }
                 }
             }
+            else if (cmd === CMD_GET_DRASHNA) {
+                // [CMD, TKO_0..3, GRO_0..3, OFS_0..3, LIM_0..3]
+                const view = new DataView(data.buffer);
+                drashnaParams.takeoff = view.getFloat32(1, true);
+                drashnaParams.growth = view.getFloat32(5, true);
+                drashnaParams.offset = view.getFloat32(9, true);
+                drashnaParams.limit = view.getFloat32(13, true);
+
+                logDebug(`RX Drashna: T=${drashnaParams.takeoff.toFixed(2)} G=${drashnaParams.growth.toFixed(2)} O=${drashnaParams.offset.toFixed(2)} L=${drashnaParams.limit.toFixed(2)}`);
+
+                // Update UI
+                if (document.getElementById('rngTakeoff')) {
+                    document.getElementById('rngTakeoff').value = drashnaParams.takeoff;
+                    document.getElementById('valTakeoff').innerText = drashnaParams.takeoff.toFixed(2);
+
+                    document.getElementById('rngGrowth').value = drashnaParams.growth;
+                    document.getElementById('valGrowth').innerText = drashnaParams.growth.toFixed(2);
+
+                    document.getElementById('rngOffset').value = drashnaParams.offset;
+                    document.getElementById('valOffset').innerText = drashnaParams.offset.toFixed(2);
+
+                    document.getElementById('rngLimit').value = drashnaParams.limit;
+                    document.getElementById('valLimit').innerText = drashnaParams.limit.toFixed(2);
+                }
+                drawDrashna();
+                updateConfigOutputDrashna();
+            }
         }
 
         // Globals for sync
@@ -1550,19 +1686,335 @@
         function animateCursor() {
             // Smooth lerp
             const diff = cursorState.targetX - cursorState.currentX;
+
             if (Math.abs(diff) > 0.05) {
                 cursorState.currentX += diff * 0.2; // 20% smoothing factor
                 draw();
-            } else if (Math.abs(cursorState.currentX) > 0.05 && cursorState.targetX === 0) {
-                // Ensure it goes to absolute zero
+                if (currentMode === KEYBALL_ACCEL_MODE_DRASHNA) drawDrashna();
+            } else if (cursorState.currentX > 0.05 && cursorState.targetX === 0) {
+                // Snap to zero to avoid infinite tiny redraws
                 cursorState.currentX = 0;
                 draw();
+                if (currentMode === KEYBALL_ACCEL_MODE_DRASHNA) drawDrashna();
             }
+
             requestAnimationFrame(animateCursor);
         }
-        animateCursor(); // Start loop
+        requestAnimationFrame(animateCursor);
+
+        // --- Drashna Logic ---
+
+        function resizeDrashna() {
+            const wrapper = drashnaCanvas.parentElement;
+            if (wrapper) {
+                const rect = wrapper.getBoundingClientRect();
+                drashnaCanvas.width = rect.width;
+                drashnaCanvas.height = rect.height;
+                drawDrashna();
+            }
+        }
+        window.addEventListener('resize', resizeDrashna);
+
+        function getDrashnaMaxRaw() {
+            const el = document.getElementById('drashnaMaxRaw');
+            if (!el) return 127;
+            const val = parseInt(el.value);
+            return (isNaN(val) || val < 20) ? 127 : Math.min(val, 127);
+        }
+
+        function drawDrashna() {
+            if (!dCtx) return;
+            const width = drashnaCanvas.width;
+            const height = drashnaCanvas.height;
+            dCtx.clearRect(0, 0, width, height);
+
+            // Reuse style constants
+            const MARGIN_L = 40;
+            const MARGIN_B = 50;
+            const MARGIN_T = 20;
+            const MARGIN_R = 30;
+
+            const maxRaw = getDrashnaMaxRaw();
+            // Auto-calculate Max Y Scale
+            // 1. Find max factor in the visible range (0..maxRaw)
+            //    Since sigmoid is monotonic (usually), checking end points is often enough,
+            //    but let's do a quick scan to be safe or just use the upper limit if it's small?
+            //    Actually, Drashna curve is a sigmoid, it goes from 'm' to 'upper' (which is 1.0 usually)
+            //    BUT wait, the formula is: factor = upper - (upper - m) / denom.
+            //    If m (limit) < upper (1.0), it goes from m to upper.
+            //    However, user might want to see higher if they mess with code?
+            //    Actually, standard Drashna upper limit is BUTTON_LIMIT_UPPER which is 1.0.
+            //    Wait, the previous graph went up to 5x. Why?
+            //    Ah, earlier simpler algorithms went high. Drashna is usually <= 1.0.
+            //    BUT let's just calc max value to be safe.
+            const k = drashnaParams.takeoff;
+            const g = drashnaParams.growth;
+            const s = drashnaParams.offset;
+            const m = drashnaParams.limit;
+            const upper = 1.0;
+
+            // Calc max factor at large V just in case curve goes up
+            // Or just check maxRaw. Sigmoid is monotonic.
+            // If k>0, it grows.
+            let maxFactor = 0;
+            // quick loop
+            for (let v = 0; v <= maxRaw; v += 5) {
+                let f = 0;
+                if (k < 0.001) { f = m; }
+                else {
+                    let denom = Math.pow(1 + Math.exp(k * (v - s)), g / k);
+                    f = upper - (upper - m) / denom;
+                }
+                if (f > maxFactor) maxFactor = f;
+            }
+            // Check end point specifically
+            {
+                let v = maxRaw;
+                let f = 0;
+                if (k < 0.001) { f = m; }
+                else {
+                    let denom = Math.pow(1 + Math.exp(k * (v - s)), g / k);
+                    f = upper - (upper - m) / denom;
+                }
+                if (f > maxFactor) maxFactor = f;
+            }
+
+            // If maxFactor is small (e.g. 1.0), let's show at least 1.5 or 2.0?
+            // User asked for "max range + 0.5 padding"
+            let maxScale = Math.ceil((maxFactor + 0.5) * 10) / 10;
+            if (maxScale < 1.0) maxScale = 1.0;
+
+            // Helper to map
+            const toScreen = (x, y) => {
+                const sx = MARGIN_L + (x / maxRaw) * (width - MARGIN_L - MARGIN_R);
+                const sy = (height - MARGIN_B) - (y / maxScale) * (height - MARGIN_B - MARGIN_T);
+                return { x: sx, y: sy };
+            };
+
+            // Grid (Ported from draw())
+            dCtx.strokeStyle = '#444';
+            dCtx.fillStyle = '#bbb';
+            dCtx.font = '11px monospace';
+            dCtx.textAlign = 'center';
+            dCtx.textBaseline = 'top';
+            dCtx.lineWidth = 1;
+
+            // X Axis
+            const xTickStep = 10;
+            const minLabelDist = 25;
+
+            // 1. Draw Max Raw Tick (Priority)
+            const posMax = toScreen(maxRaw, 0);
+            dCtx.beginPath(); dCtx.moveTo(posMax.x, MARGIN_T); dCtx.lineTo(posMax.x, height - MARGIN_B);
+            dCtx.strokeStyle = '#444'; dCtx.stroke();
+            dCtx.fillText(maxRaw, posMax.x, height - MARGIN_B + 8);
+
+            // 2. Draw stepped ticks
+            for (let i = 0; i < maxRaw; i += xTickStep) {
+                const pos = toScreen(i, 0);
+                if (Math.abs(pos.x - posMax.x) < minLabelDist) continue;
+
+                // Major tick
+                dCtx.beginPath();
+                dCtx.moveTo(pos.x, MARGIN_T); dCtx.lineTo(pos.x, height - MARGIN_B);
+                dCtx.strokeStyle = '#444'; dCtx.stroke();
+                dCtx.fillText(i, pos.x, height - MARGIN_B + 8);
+
+                // Minor tick (i + 5)
+                if (i + 5 < maxRaw) {
+                    const posHalf = toScreen(i + 5, 0);
+                    dCtx.beginPath();
+                    dCtx.moveTo(posHalf.x, MARGIN_T); dCtx.lineTo(posHalf.x, height - MARGIN_B);
+                    dCtx.strokeStyle = '#222'; dCtx.stroke();
+                }
+            }
+
+            // Title X
+            dCtx.save(); dCtx.fillStyle = '#eee'; dCtx.font = '12px sans-serif';
+            dCtx.fillText(`Raw Speed (0-${maxRaw})`, MARGIN_L + (width - MARGIN_L - MARGIN_R) / 2, height - 15);
+            dCtx.restore();
+
+            // Y Axis
+            dCtx.textAlign = 'right'; dCtx.textBaseline = 'middle';
+            const steps = Math.floor(maxScale);
+            for (let i = 0; i <= steps; i++) {
+                // Major Line
+                const pos = toScreen(0, i);
+                dCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                dCtx.beginPath(); dCtx.moveTo(MARGIN_L, pos.y); dCtx.lineTo(width - MARGIN_R, pos.y); dCtx.stroke();
+                dCtx.fillText(i + '.0x', MARGIN_L - 8, pos.y);
+
+                // Minor Line (i + 0.5)
+                if (i + 0.5 <= maxScale) {
+                    const posHalf = toScreen(0, i + 0.5);
+                    dCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                    dCtx.beginPath(); dCtx.moveTo(MARGIN_L, posHalf.y); dCtx.lineTo(width - MARGIN_R, posHalf.y); dCtx.stroke();
+                }
+            }
+
+            // Curve
+            dCtx.strokeStyle = '#00e5ff'; // Cyan for Drashna
+            dCtx.lineWidth = 3;
+            dCtx.beginPath();
+
+            let started = false;
+            for (let v = 0; v <= maxRaw; v += 1) {
+                let factor = 0;
+                if (k < 0.001) {
+                    factor = m;
+                } else {
+                    let denom = Math.pow(1 + Math.exp(k * (v - s)), g / k);
+                    factor = upper - (upper - m) / denom;
+                }
+
+                const pos = toScreen(v, factor);
+                if (!started) { dCtx.moveTo(pos.x, pos.y); started = true; }
+                else { dCtx.lineTo(pos.x, pos.y); }
+            }
+            dCtx.stroke();
+
+
+            // Ghost Trail
+            if (gestureHistory.length > 0) {
+                for (let j = 0; j < gestureHistory.length; j++) {
+                    const rawX = gestureHistory[j];
+                    if (rawX > maxRaw) continue;
+
+                    // Gradient: Oldest (j=0) -> Newest (j=len-1)
+                    const progress = j / Math.max(gestureHistory.length - 1, 1);
+                    const alpha = 0.3 + (0.6 * progress);
+                    dCtx.fillStyle = `rgba(200, 200, 200, ${alpha.toFixed(2)})`;
+
+                    let factor = 0;
+                    if (k < 0.001) factor = m;
+                    else {
+                        let denom = Math.pow(1 + Math.exp(k * (rawX - s)), g / k);
+                        factor = upper - (upper - m) / denom;
+                    }
+
+                    const pos = toScreen(rawX, factor);
+                    dCtx.beginPath();
+                    dCtx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+                    dCtx.fill();
+                }
+            }
+
+            // Real-time Cursor / Crosshair
+            if (cursorState.currentX > 0.1) {
+                let v = cursorState.currentX;
+                let factor = 0;
+                if (k < 0.001) factor = m;
+                else {
+                    let denom = Math.pow(1 + Math.exp(k * (v - s)), g / k);
+                    factor = upper - (upper - m) / denom;
+                }
+
+                // Update Status Panel (Global)
+                if (currentMode === KEYBALL_ACCEL_MODE_DRASHNA) {
+                    document.getElementById('outScaleValue').innerText = factor.toFixed(2) + "x";
+                }
+
+                // Calc positions
+                const pos = toScreen(v, factor);
+                const posXAxis = toScreen(v, 0);
+
+                dCtx.save();
+                dCtx.strokeStyle = '#aaa';
+                dCtx.setLineDash([5, 5]);
+                dCtx.lineWidth = 1;
+
+                // Vertical Line (from X axis up to curve point)
+                dCtx.beginPath();
+                dCtx.moveTo(posXAxis.x, posXAxis.y);
+                dCtx.lineTo(pos.x, pos.y);
+                dCtx.stroke();
+
+                // Horizontal Line (from Y axis to curve point)
+                dCtx.beginPath();
+                dCtx.moveTo(MARGIN_L, pos.y);
+                dCtx.lineTo(pos.x, pos.y);
+                dCtx.stroke();
+
+                dCtx.restore();
+
+                // Draw Dot
+                dCtx.fillStyle = '#fff';
+                dCtx.beginPath(); dCtx.arc(pos.x, pos.y, 5, 0, Math.PI * 2); dCtx.fill();
+            }
+        }
+
+        async function requestDrashnaConfig() {
+            if (!device || !device.opened) return;
+            const report = new Uint8Array(32);
+            report[0] = CMD_GET_DRASHNA;
+            await device.sendReport(0, report);
+            logDebug("Requested Drashna Config");
+        }
+
+        async function sendDrashnaConfig() {
+            if (!device || !device.opened) return;
+            const report = new Uint8Array(32);
+            report[0] = CMD_SET_DRASHNA;
+
+            const view = new DataView(report.buffer);
+            // Offset 1: Takeoff (Float Little Endian)
+            view.setFloat32(1, drashnaParams.takeoff, true);
+            view.setFloat32(5, drashnaParams.growth, true);
+            view.setFloat32(9, drashnaParams.offset, true);
+            view.setFloat32(13, drashnaParams.limit, true);
+
+            await device.sendReport(0, report);
+            updateConfigOutputDrashna();
+        }
+
+        function updateConfigOutputDrashna() {
+            const c = drashnaParams;
+            const txt = `
+// Paste into keymap.c 'keyball_accel_t' struct:
+.accel_drashna = {
+    .takeoff     = ${c.takeoff.toFixed(2)}f,
+    .growth_rate = ${c.growth.toFixed(2)}f,
+    .offset      = ${c.offset.toFixed(2)}f,
+    .limit       = ${c.limit.toFixed(2)}f
+}`;
+            const out = document.getElementById('configOutput');
+            if (out) out.innerText = txt;
+        }
+
+        // Drashna UI Listeners
+        ['Takeoff', 'Growth', 'Offset', 'Limit'].forEach(key => {
+            const el = document.getElementById('rng' + key);
+            const disp = document.getElementById('val' + key);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    drashnaParams[key.toLowerCase()] = val;
+                    if (disp) disp.innerText = val.toFixed(2);
+                    drawDrashna();
+                    updateConfigOutput();
+                    sendDrashnaConfig();
+                });
+            }
+        });
+
+        const elMaxRaw = document.getElementById('drashnaMaxRaw');
+        if (elMaxRaw) elMaxRaw.addEventListener('change', drawDrashna);
+
+        const elReset = document.getElementById('btnDrashnaReset');
+        if (elReset) elReset.addEventListener('click', async () => {
+            if (!device || !device.opened) return;
+            const report = new Uint8Array(32);
+            report[0] = CMD_RESET_CONFIG;
+            await device.sendReport(0, report);
+            logDebug("Reset to Defaults (Drashna Mode)");
+            setTimeout(async () => {
+                await requestDrashnaConfig();
+            }, 50);
+        });
+
 
         async function startPolling() {
+            logDebug("Starting polling loop...");
             if (pollingInterval) clearInterval(pollingInterval);
             pollingInterval = setInterval(async () => {
                 if (!device || !device.opened) return;
