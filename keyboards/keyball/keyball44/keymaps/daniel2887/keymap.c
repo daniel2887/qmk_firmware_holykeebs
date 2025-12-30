@@ -227,6 +227,7 @@ void keyboard_post_init_user(void) {
     keyball_set_default_acceleration_data(&accel_conf);
     keyball_set_default_anisotropy_data(&anisotropy_conf);
     keyball_set_default_directional_sensitivity_data(&directional_sensitivity_conf);
+    keyball_set_default_coord_rot(10.0f);
 }
 
 bool caps_word_press_user(uint16_t keycode) {

@@ -91,8 +91,11 @@ report_mouse_t pointing_device_task_pointing_device_accel(report_mouse_t mouse_r
     static float rounding_carry_x = 0;
     static float rounding_carry_y = 0;
 
-    float dx = keyball_apply_anisotropy_x(mouse_report.x);
-    float dy = keyball_apply_anisotropy_y(mouse_report.y);
+    float dx = (float)mouse_report.x;
+    float dy = (float)mouse_report.y;
+    keyball_apply_coord_rot(&dx, &dy);
+    dx = keyball_apply_anisotropy_x(dx);
+    dy = keyball_apply_anisotropy_y(dy);
     dx = keyball_apply_directional_sensitivity_x(dx);
     dy = keyball_apply_directional_sensitivity_y(dy);
 

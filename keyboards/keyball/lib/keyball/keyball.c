@@ -28,6 +28,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <math.h>
 #include "raw_hid.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 const uint16_t CPI_DEFAULT    = KEYBALL_CPI_DEFAULT;
 // Anything above this value makes the cursor fly across the screen.
 const uint16_t CPI_MAX        = 3000 + 1;
@@ -101,6 +105,7 @@ keyball_t keyball = {
     },
     .anisotropy = {1.0f, 1.0f},
     .directional_sensitivity = {1.0f, 1.0f, 1.0f, 1.0f},
+    .coord_rot_angle = 0.0f,
 };
 
 static uint16_t kb_last_speed = 0;
@@ -125,12 +130,12 @@ void keyball_set_default_anisotropy_data(const keyball_anisotropy_t *data) {
     keyball.anisotropy = *data;
 }
 
-float keyball_apply_anisotropy_x(int16_t val) {
-    return (float)val * keyball.anisotropy.x;
+float keyball_apply_anisotropy_x(float val) {
+    return val * keyball.anisotropy.x;
 }
 
-float keyball_apply_anisotropy_y(int16_t val) {
-    return (float)val * keyball.anisotropy.y;
+float keyball_apply_anisotropy_y(float val) {
+    return val * keyball.anisotropy.y;
 }
 
 void keyball_set_default_directional_sensitivity_data(const keyball_directional_sensitivity_t *data) {
@@ -151,6 +156,28 @@ float keyball_apply_directional_sensitivity_y(float val) {
     } else {
         return val * keyball.directional_sensitivity.y_neg;
     }
+}
+
+void keyball_set_default_coord_rot(float angle) {
+    keyball.coord_rot_angle = angle;
+}
+
+void keyball_apply_coord_rot(float *x_inout, float *y_inout) {
+    if (keyball.coord_rot_angle == 0.0f) {
+        return;
+    }
+    // Convert degrees to radians
+    float rad = keyball.coord_rot_angle * (M_PI / 180.0f);
+    float c = cosf(rad);
+    float s = sinf(rad);
+
+    // x' = x cos(theta) - y sin(theta)
+    // y' = x sin(theta) + y cos(theta)
+    float nx = *x_inout * c - *y_inout * s;
+    float ny = *x_inout * s + *y_inout * c;
+
+    *x_inout = nx;
+    *y_inout = ny;
 }
 
 // Drashna Module Shims
@@ -393,8 +420,12 @@ static void keyball_accel_apply_simple(keyball_motion_t *accum, float dx, float 
 }
 
 static void apply_acceleration(keyball_motion_t *accum, report_mouse_t *report, int16_t *out_x, int16_t *out_y) {
-    float dx = keyball_apply_anisotropy_x(report->x);
-    float dy = keyball_apply_anisotropy_y(report->y);
+    float dx = (float)report->x;
+    float dy = (float)report->y;
+
+    keyball_apply_coord_rot(&dx, &dy);
+    dx = keyball_apply_anisotropy_x(dx);
+    dy = keyball_apply_anisotropy_y(dy);
     dx = keyball_apply_directional_sensitivity_x(dx);
     dy = keyball_apply_directional_sensitivity_y(dy);
 
