@@ -169,37 +169,37 @@ void keyboard_post_init_user(void) {
     const keyball_accel_t accel_conf = {
         .accel_lut = {
             .table = {
-                48, 206, 1204, 1680, 1783, 1783, 1783, 1783,
-                1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
-                1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
-                1783, 1783, 1783, 1783, 1783, 1783, 1783, 1783,
+                0.1875f, 0.8047f, 4.7031f, 6.5625f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
+                6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
+                6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
+                6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
             },
-            .max_speed_limit = 1920, // Safety Cap
-            .global_gain = 256,      // 1.00x Sensitivity
+            .max_speed_limit = 7.5f, // Safety Cap
+            .global_gain = 1.0f,      // 1.00x Sensitivity
             .algo_version = 1,
             .num_points = 7,
             .points = {
-                {0, 48},
-                {778, 71},
-                {1318, 495},
-                {1858, 1063},
-                {2884, 1620},
-                {3820, 1783},
-                {12800, 1783}
+                {0.0f, 0.1875f},
+                {3.0391f, 0.2773f},
+                {5.1484f, 1.9336f},
+                {7.2578f, 4.1523f},
+                {11.2656f, 6.3281f},
+                {14.9219f, 6.9648f},
+                {50.0000f, 6.9648f}
             }
         },
         .accel_simple = {
             // Base sensitivity (0.0 - 1.0 for dampening).
             // Lower this value (e.g. 0.3) to make slow movements much slower/more precise.
-            .base   = Q88(0.4),
+            .base   = 0.4f,
 
             // Acceleration rate per count of speed.
             // Increase this to make the cursor accelerate more aggressively as you move faster.
-            .factor = Q88(0.10),
+            .factor = 0.10f,
 
             // Maximum sensitivity multiplier.
             // Increase this if you want to cover more distance (e.g. multiple monitors) when flinging.
-            .max    = Q88(6.0)
+            .max    = 6.0f
         },
         .accel_drashna = {
             .takeoff     = 0.9f,

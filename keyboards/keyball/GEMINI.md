@@ -15,12 +15,17 @@ This knowledge base covers the customized Keyball firmware ecosystem.
 ### Key Directories
 *   **User Keymap**: `keyboards/keyball/keyball44/keymaps/daniel2887/`
     *   Primary workspace for the user `daniel2887`. Contains `keymap.c`, `config.h`, `rules.mk`.
+    *   `keymap.c` configures various keyball behaviors according to user daniel2887's personal preferences. Any edits to this file should preserve user-facing behavior (e.g., key mapppings, trackball acceleration, etc.) unless changes in this behavior are explicitly requested. If the request is unclear, ask for clarification.
     *   **Note**: All configuration changes (e.g., `KEYBALL_ACCEL_MODE`) are made here.
 *   **Core Driver**: `keyboards/keyball/lib/keyball/`
     *   `keyball.c`: Core logic, custom acceleration algorithms, RawHID dispatch.
     *   `keyball.h`: Config definitions, structs, mode defines.
 *   **Tools**: `keyboards/keyball/keyball44/keymaps/daniel2887/tools/`
     *   `keyball_tuner/tuner.html`: Standalone WebHID Tuner for LUT acceleration.
+
+### Terminal Commands
+*   **grep**: When searching a path using `grep`, use forward slashes `/` instead of backslashes `\` in the path.
+    *   Example: `grep -r "some_string" C:/foo/bar/buz/`
 
 ## 3. Architecture & Data Flow
 The system consists of a standalone HTML tool that communicates with the QMK firmware via RawHID packets.

@@ -138,8 +138,8 @@ typedef struct {
     int16_t x;
     int16_t y;
 #ifdef KEYBALL_POINTER_ACCEL_ENABLE
-    int16_t remainder_x;
-    int16_t remainder_y;
+    float remainder_x;
+    float remainder_y;
 #endif
 } keyball_motion_t;
 
@@ -292,28 +292,25 @@ void keyball_set_cpi(uint16_t cpi);
 #define ACCEL_MAX_POINTS 16
 #define ACCEL_ALGO_VER_1 1
 
-// Helper macro for Q8.8 fixed-point conversion
-#define Q88(x) ((uint16_t)((x) * 256.0 + 0.5))
-
 typedef struct {
-    uint16_t x; // Q8.8 fixed point (value * 256)
-    uint16_t y; // Q8.8 fixed point
+    float x;
+    float y;
 } keyball_point_t;
 
 typedef struct {
 
         struct {
-            uint16_t table[ACCEL_LUT_SIZE];
-            uint16_t max_speed_limit; // Safety cap
-            uint16_t global_gain;     // Q8.8 Global Multiplier (256 = 1.0x)
+            float table[ACCEL_LUT_SIZE];
+            float max_speed_limit; // Safety cap (multiplier)
+            float global_gain;     // Global Multiplier (1.0 = 1.0x)
             uint8_t algo_version;
             uint8_t num_points;
             keyball_point_t points[ACCEL_MAX_POINTS];
         } accel_lut;
         struct {
-            uint16_t base;     // Q8.8
-            uint16_t factor;   // Q8.8
-            uint16_t max;      // Q8.8
+            float base;
+            float factor;
+            float max;
         } accel_simple;
         struct {
             float takeoff;
