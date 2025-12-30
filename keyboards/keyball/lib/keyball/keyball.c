@@ -55,58 +55,57 @@ keyball_t keyball = {
     .scroll_div  = 0,
 
     .pressing_keys = { BL, BL, BL, BL, BL, BL, 0 },
-};
 
-// Acceleration Tuning Globals
-static keyball_accel_t kb_accel = {0}; // Initialize with zeros, will be set by keymap
-static keyball_accel_t kb_accel_default = {
-    .accel_lut = {
-        .table = {
-            0.1875f, 0.8047f, 4.7031f, 6.5625f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
-            6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
-            6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
-            6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
+    .accel_default = {
+        .accel_lut = {
+            .table = {
+                0.1875f, 0.8047f, 4.7031f, 6.5625f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
+                6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
+                6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
+                6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f, 6.9648f,
+            },
+            .max_speed_limit = 7.5f, // Safety Cap
+            .global_gain = 1.0f,      // 1.00x Sensitivity
+            .algo_version = 1,
+            .num_points = 7,
+            .points = {
+                {0.0f, 0.1875f},
+                {3.0391f, 0.2773f},
+                {5.1484f, 1.9336f},
+                {7.2578f, 4.1523f},
+                {11.2656f, 6.3281f},
+                {14.9219f, 6.9648f},
+                {50.0000f, 6.9648f}
+            }
         },
-        .max_speed_limit = 7.5f, // Safety Cap
-        .global_gain = 1.0f,      // 1.00x Sensitivity
-        .algo_version = 1,
-        .num_points = 7,
-        .points = {
-            {0.0f, 0.1875f},
-            {3.0391f, 0.2773f},
-            {5.1484f, 1.9336f},
-            {7.2578f, 4.1523f},
-            {11.2656f, 6.3281f},
-            {14.9219f, 6.9648f},
-            {50.0000f, 6.9648f}
-        }
-    },
-    .accel_simple = {
-        // Base sensitivity (0.0 - 1.0 for dampening).
-        // Lower this value (e.g. 0.3) to make slow movements much slower/more precise.
-        .base   = 0.4f,
+        .accel_simple = {
+            // Base sensitivity (0.0 - 1.0 for dampening).
+            // Lower this value (e.g. 0.3) to make slow movements much slower/more precise.
+            .base   = 0.4f,
 
-        // Acceleration rate per count of speed.
-        // Increase this to make the cursor accelerate more aggressively as you move faster.
-        .factor = 0.10f,
+            // Acceleration rate per count of speed.
+            // Increase this to make the cursor accelerate more aggressively as you move faster.
+            .factor = 0.10f,
 
-        // Maximum sensitivity multiplier.
-        // Increase this if you want to cover more distance (e.g. multiple monitors) when flinging.
-        .max    = 6.0f
+            // Maximum sensitivity multiplier.
+            // Increase this if you want to cover more distance (e.g. multiple monitors) when flinging.
+            .max    = 6.0f
+        },
+        .accel_drashna = {
+            .takeoff     = 2.0f,
+            .growth_rate = 0.25f,
+            .offset      = 2.2f,
+            .limit       = 0.2f,
+            .limit_upper = 1.0f
+        },
     },
-    .accel_drashna = {
-        .takeoff     = 2.0f,
-        .growth_rate = 0.25f,
-        .offset      = 2.2f,
-        .limit       = 0.2f,
-        .limit_upper = 1.0f
-    }
+    .anisotropy = {1.0f, 1.0f},
 };
 
 static uint16_t kb_last_speed = 0;
 
 static void keyball_set_acceleration_data(const keyball_accel_t *data) {
-    kb_accel = *data;
+    keyball.accel = *data;
 
     // Sync Drashna Config
     pointing_device_accel_set_takeoff(data->accel_drashna.takeoff);
@@ -117,8 +116,20 @@ static void keyball_set_acceleration_data(const keyball_accel_t *data) {
 }
 
 void keyball_set_default_acceleration_data(const keyball_accel_t *data) {
-    kb_accel_default = *data;
+    keyball.accel_default = *data;
     keyball_set_acceleration_data(data);
+}
+
+void keyball_set_default_anisotropy_data(const keyball_anisotropy_t *data) {
+    keyball.anisotropy = *data;
+}
+
+float keyball_apply_anisotropy_x(int16_t val) {
+    return (float)val * keyball.anisotropy.x;
+}
+
+float keyball_apply_anisotropy_y(int16_t val) {
+    return (float)val * keyball.anisotropy.y;
 }
 
 // Drashna Module Shims
@@ -287,9 +298,9 @@ __attribute__((weak)) void keyball_on_apply_motion_to_mouse_scroll(report_mouse_
 #endif
 }
 
-static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
+static void keyball_accel_apply_lut(keyball_motion_t *accum, float dx, float dy, int16_t *out_x, int16_t *out_y) {
     // Current Speed in counts
-    float speed = sqrt((float)dx * dx + (float)dy * dy);
+    float speed = sqrt(dx * dx + dy * dy);
 
     // Peak Hold for Tuner
     uint16_t speed_int = (uint16_t)speed;
@@ -305,8 +316,8 @@ static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t d
     }
 
     // Linear Interpolation
-    float y1 = kb_accel.accel_lut.table[index];
-    float y2 = kb_accel.accel_lut.table[index+1];
+    float y1 = keyball.accel.accel_lut.table[index];
+    float y2 = keyball.accel.accel_lut.table[index+1];
     float t = (speed - (index * 4.0f)) / 4.0f;
     
     // Clamp t to 0..1 to be safe
@@ -316,18 +327,18 @@ static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t d
     float scale = y1 + (y2 - y1) * t;
 
     // Apply Global Gain
-    if (kb_accel.accel_lut.global_gain > 0.0f) {
-        scale *= kb_accel.accel_lut.global_gain;
+    if (keyball.accel.accel_lut.global_gain > 0.0f) {
+        scale *= keyball.accel.accel_lut.global_gain;
     }
 
     // Safety Clamp
-    if ((kb_accel.accel_lut.max_speed_limit > 0.0f) && (scale > kb_accel.accel_lut.max_speed_limit)) {
-        scale = kb_accel.accel_lut.max_speed_limit;
+    if ((keyball.accel.accel_lut.max_speed_limit > 0.0f) && (scale > keyball.accel.accel_lut.max_speed_limit)) {
+        scale = keyball.accel.accel_lut.max_speed_limit;
     }
 
     // Apply Scaling with Remainder Accumulation
-    float sx = (float)dx * scale + accum->remainder_x;
-    float sy = (float)dy * scale + accum->remainder_y;
+    float sx = dx * scale + accum->remainder_x;
+    float sy = dy * scale + accum->remainder_y;
 
     *out_x = (int16_t)sx;
     *out_y = (int16_t)sy;
@@ -336,22 +347,22 @@ static void keyball_accel_apply_lut(keyball_motion_t *accum, int8_t dx, int8_t d
     accum->remainder_y = sy - *out_y;
 }
 
-static void keyball_accel_apply_simple(keyball_motion_t *accum, int8_t dx, int8_t dy, int16_t *out_x, int16_t *out_y) {
+static void keyball_accel_apply_simple(keyball_motion_t *accum, float dx, float dy, int16_t *out_x, int16_t *out_y) {
     // 1. Calculate speed
-    float speed = sqrt((float)dx * dx + (float)dy * dy);
+    float speed = sqrt(dx * dx + dy * dy);
 
     // 2. Calculate Scale
     // scale = base + (speed * factor)
-    float scale = kb_accel.accel_simple.base + (speed * kb_accel.accel_simple.factor);
+    float scale = keyball.accel.accel_simple.base + (speed * keyball.accel.accel_simple.factor);
 
     // 3. Clamp to Max
-    if (kb_accel.accel_simple.max > 0.0f && scale > kb_accel.accel_simple.max) {
-        scale = kb_accel.accel_simple.max;
+    if (keyball.accel.accel_simple.max > 0.0f && scale > keyball.accel.accel_simple.max) {
+        scale = keyball.accel.accel_simple.max;
     }
 
     // 4. Apply Scaling with Remainder Accumulation
-    float sx = (float)dx * scale + accum->remainder_x;
-    float sy = (float)dy * scale + accum->remainder_y;
+    float sx = dx * scale + accum->remainder_x;
+    float sy = dy * scale + accum->remainder_y;
 
     *out_x = (int16_t)sx;
     *out_y = (int16_t)sy;
@@ -361,27 +372,31 @@ static void keyball_accel_apply_simple(keyball_motion_t *accum, int8_t dx, int8_
 }
 
 static void apply_acceleration(keyball_motion_t *accum, report_mouse_t *report, int16_t *out_x, int16_t *out_y) {
+    float dx = keyball_apply_anisotropy_x(report->x);
+    float dy = keyball_apply_anisotropy_y(report->y);
+
     if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT) {
-        keyball_accel_apply_lut(accum, report->x, report->y, out_x, out_y);
+        keyball_accel_apply_lut(accum, dx, dy, out_x, out_y);
     } else if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_SIMPLE) {
-        keyball_accel_apply_simple(accum, report->x, report->y, out_x, out_y);
+        keyball_accel_apply_simple(accum, dx, dy, out_x, out_y);
     } else if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_DRASHNA) {
         // Track speed for tuner visualization
         // TODO: refactor this and make this computation generic across the 3 accel modes
         // Using int speed for Peak Hold
-        uint16_t speed = (uint16_t)sqrt((float)report->x * report->x + (float)report->y * report->y);
+        // Note: For visualization we use anisotropy-applied values to match what the cursor does
+        uint16_t speed = (uint16_t)sqrt(dx * dx + dy * dy);
         if (speed > kb_last_speed) {
             kb_last_speed = speed;
         }
 
         // Drashna's algorithm manages its own internal state/accumulation
+        // We pass the raw report; anisotropy is applied INSIDE the driver now (via keyball_apply_anisotropy callbacks)
         report_mouse_t accel = pointing_device_task_pointing_device_accel(*report);
         *out_x = accel.x;
         *out_y = accel.y;
     } else {
-        // NONE or CUSTOM fallbacks
-        *out_x = report->x;
-        *out_y = report->y;
+        *out_x = (int16_t)dx;
+        *out_y = (int16_t)dy;
     }
 }
 
@@ -652,17 +667,17 @@ static void handle_set_curve_pt(uint8_t *data, uint8_t length) {
 
     if (idx < ACCEL_LUT_SIZE) {
         conv.b[0] = data[2]; conv.b[1] = data[3]; conv.b[2] = data[4]; conv.b[3] = data[5];
-        kb_accel.accel_lut.table[idx] = conv.f;
+        keyball.accel.accel_lut.table[idx] = conv.f;
     }
 
     // Max Speed Limit
     conv.b[0] = data[6]; conv.b[1] = data[7]; conv.b[2] = data[8]; conv.b[3] = data[9];
-    kb_accel.accel_lut.max_speed_limit = conv.f;
+    keyball.accel.accel_lut.max_speed_limit = conv.f;
 
     // Extended capability: Gain at index 10-13
     if (length > 13) {
         conv.b[0] = data[10]; conv.b[1] = data[11]; conv.b[2] = data[12]; conv.b[3] = data[13];
-        if (conv.f > 0.0f) kb_accel.accel_lut.global_gain = conv.f;
+        if (conv.f > 0.0f) keyball.accel.accel_lut.global_gain = conv.f;
     }
 }
 
@@ -676,7 +691,7 @@ static void handle_set_curve_all(uint8_t *data, uint8_t length) {
     for (uint8_t i = 0; i < count; i++) {
         if (start_idx + i < ACCEL_LUT_SIZE && offset + 3 < length) {
             conv.b[0] = data[offset]; conv.b[1] = data[offset+1]; conv.b[2] = data[offset+2]; conv.b[3] = data[offset+3];
-            kb_accel.accel_lut.table[start_idx + i] = conv.f;
+            keyball.accel.accel_lut.table[start_idx + i] = conv.f;
             offset += 4;
         }
     }
@@ -687,10 +702,10 @@ static void handle_set_points(uint8_t *data, uint8_t length) {
     uint8_t start_idx = data[1];
     uint8_t count = data[2];
     uint8_t offset = 4;
-    kb_accel.accel_lut.algo_version = data[3];    
+    keyball.accel.accel_lut.algo_version = data[3];    
 
-    if (start_idx + count > kb_accel.accel_lut.num_points) {
-        kb_accel.accel_lut.num_points = start_idx + count;
+    if (start_idx + count > keyball.accel.accel_lut.num_points) {
+        keyball.accel.accel_lut.num_points = start_idx + count;
     }
 
     union { float f; uint8_t b[4]; } conv;
@@ -699,11 +714,11 @@ static void handle_set_points(uint8_t *data, uint8_t length) {
         if (start_idx + i < ACCEL_MAX_POINTS && offset + 7 < length) {
             // X
             conv.b[0] = data[offset]; conv.b[1] = data[offset+1]; conv.b[2] = data[offset+2]; conv.b[3] = data[offset+3];
-            kb_accel.accel_lut.points[start_idx + i].x = conv.f;
+            keyball.accel.accel_lut.points[start_idx + i].x = conv.f;
             offset += 4;
              // Y
             conv.b[0] = data[offset]; conv.b[1] = data[offset+1]; conv.b[2] = data[offset+2]; conv.b[3] = data[offset+3];
-            kb_accel.accel_lut.points[start_idx + i].y = conv.f;
+            keyball.accel.accel_lut.points[start_idx + i].y = conv.f;
             offset += 4;
         }
     }
@@ -730,14 +745,14 @@ static void handle_read_all(uint8_t *data) {
 
     if (offset == 0) {
         // Metadata: [0=CMD, 1=OFF, 2..5=MAX, 6..9=GAIN, 10=ALGO, 11=NUM, 12=MODE]
-        conv.f = kb_accel.accel_lut.max_speed_limit;
+        conv.f = keyball.accel.accel_lut.max_speed_limit;
         report[2] = conv.b[0]; report[3] = conv.b[1]; report[4] = conv.b[2]; report[5] = conv.b[3];
 
-        conv.f = kb_accel.accel_lut.global_gain;
+        conv.f = keyball.accel.accel_lut.global_gain;
         report[6] = conv.b[0]; report[7] = conv.b[1]; report[8] = conv.b[2]; report[9] = conv.b[3];
 
-        report[10] = kb_accel.accel_lut.algo_version;
-        report[11] = kb_accel.accel_lut.num_points;
+        report[10] = keyball.accel.accel_lut.algo_version;
+        report[11] = keyball.accel.accel_lut.num_points;
         report[12] = KEYBALL_ACCEL_MODE;
     }
 
@@ -747,13 +762,13 @@ static void handle_read_all(uint8_t *data) {
         uint8_t start = (offset - 6) * 3;
         uint8_t count = 3;
 
-        if (start >= kb_accel.accel_lut.num_points) count = 0;
-        else if (start + count > kb_accel.accel_lut.num_points) count = kb_accel.accel_lut.num_points - start;
+        if (start >= keyball.accel.accel_lut.num_points) count = 0;
+        else if (start + count > keyball.accel.accel_lut.num_points) count = keyball.accel.accel_lut.num_points - start;
 
         report[2] = count;
         uint8_t off = 3;
         for(uint8_t i=0; i<count; i++) {
-            keyball_point_t *p = &kb_accel.accel_lut.points[start + i];
+            keyball_point_t *p = &keyball.accel.accel_lut.points[start + i];
             // X
             conv.f = p->x;
             report[off++] = conv.b[0]; report[off++] = conv.b[1]; report[off++] = conv.b[2]; report[off++] = conv.b[3];
@@ -772,7 +787,7 @@ static void handle_read_all(uint8_t *data) {
         report[2] = count;
         uint8_t off = 3;
         for(uint8_t i=0; i<count; i++) {
-            conv.f = kb_accel.accel_lut.table[start+i];
+            conv.f = keyball.accel.accel_lut.table[start+i];
             report[off++] = conv.b[0]; report[off++] = conv.b[1]; report[off++] = conv.b[2]; report[off++] = conv.b[3];
         }
     }
@@ -794,21 +809,21 @@ static void handle_set_drashna(uint8_t *data) {
     union { float f; uint8_t b[4]; } conv;
 
      conv.b[0] = data[1]; conv.b[1] = data[2]; conv.b[2] = data[3]; conv.b[3] = data[4];
-     kb_accel.accel_drashna.takeoff = conv.f;
+     keyball.accel.accel_drashna.takeoff = conv.f;
 
      conv.b[0] = data[5]; conv.b[1] = data[6]; conv.b[2] = data[7]; conv.b[3] = data[8];
-     kb_accel.accel_drashna.growth_rate = conv.f;
+     keyball.accel.accel_drashna.growth_rate = conv.f;
 
      conv.b[0] = data[9]; conv.b[1] = data[10]; conv.b[2] = data[11]; conv.b[3] = data[12];
-     kb_accel.accel_drashna.offset = conv.f;
+     keyball.accel.accel_drashna.offset = conv.f;
 
      conv.b[0] = data[13]; conv.b[1] = data[14]; conv.b[2] = data[15]; conv.b[3] = data[16];
-     kb_accel.accel_drashna.limit = conv.f;
+     keyball.accel.accel_drashna.limit = conv.f;
 
      conv.b[0] = data[17]; conv.b[1] = data[18]; conv.b[2] = data[19]; conv.b[3] = data[20];
-     kb_accel.accel_drashna.limit_upper = conv.f;
+     keyball.accel.accel_drashna.limit_upper = conv.f;
 
-     keyball_set_acceleration_data(&kb_accel);
+     keyball_set_acceleration_data(&keyball.accel);
 }
 
 static void handle_get_drashna(uint8_t *data) {
@@ -818,19 +833,19 @@ static void handle_get_drashna(uint8_t *data) {
 
     union { float f; uint8_t b[4]; } conv;
 
-    conv.f = kb_accel.accel_drashna.takeoff;
+    conv.f = keyball.accel.accel_drashna.takeoff;
     report[1] = conv.b[0]; report[2] = conv.b[1]; report[3] = conv.b[2]; report[4] = conv.b[3];
 
-    conv.f = kb_accel.accel_drashna.growth_rate;
+    conv.f = keyball.accel.accel_drashna.growth_rate;
     report[5] = conv.b[0]; report[6] = conv.b[1]; report[7] = conv.b[2]; report[8] = conv.b[3];
 
-    conv.f = kb_accel.accel_drashna.offset;
+    conv.f = keyball.accel.accel_drashna.offset;
     report[9] = conv.b[0]; report[10] = conv.b[1]; report[11] = conv.b[2]; report[12] = conv.b[3];
 
-    conv.f = kb_accel.accel_drashna.limit;
+    conv.f = keyball.accel.accel_drashna.limit;
     report[13] = conv.b[0]; report[14] = conv.b[1]; report[15] = conv.b[2]; report[16] = conv.b[3];
 
-    conv.f = kb_accel.accel_drashna.limit_upper;
+    conv.f = keyball.accel.accel_drashna.limit_upper;
     report[17] = conv.b[0]; report[18] = conv.b[1]; report[19] = conv.b[2]; report[20] = conv.b[3];
 
     raw_hid_send(report, 32);
@@ -838,14 +853,14 @@ static void handle_get_drashna(uint8_t *data) {
 
 // TODO: refactor this and keyball_set_acceleration_data(), they do much the same thing
 static void handle_reset_config(void) {
-    kb_accel = kb_accel_default;
+    keyball.accel = keyball.accel_default;
 
     // Sync Drashna Config
-    pointing_device_accel_set_takeoff(kb_accel.accel_drashna.takeoff);
-    pointing_device_accel_set_growth_rate(kb_accel.accel_drashna.growth_rate);
-    pointing_device_accel_set_offset(kb_accel.accel_drashna.offset);
-    pointing_device_accel_set_limit(kb_accel.accel_drashna.limit);
-    pointing_device_accel_set_limit_upper(kb_accel.accel_drashna.limit_upper);
+    pointing_device_accel_set_takeoff(keyball.accel.accel_drashna.takeoff);
+    pointing_device_accel_set_growth_rate(keyball.accel.accel_drashna.growth_rate);
+    pointing_device_accel_set_offset(keyball.accel.accel_drashna.offset);
+    pointing_device_accel_set_limit(keyball.accel.accel_drashna.limit);
+    pointing_device_accel_set_limit_upper(keyball.accel.accel_drashna.limit_upper);
 
     kb_last_speed = 0;
 }

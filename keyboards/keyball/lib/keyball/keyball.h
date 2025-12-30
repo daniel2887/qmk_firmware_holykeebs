@@ -151,6 +151,56 @@ typedef enum {
     KEYBALL_SCROLLSNAP_MODE_FREE       = 2,
 } keyball_scrollsnap_mode_t;
 
+// Acceleration Modes
+#define KEYBALL_ACCEL_MODE_SIMPLE 0
+#define KEYBALL_ACCEL_MODE_LUT    1
+#define KEYBALL_ACCEL_MODE_DRASHNA 2
+#define KEYBALL_ACCEL_MODE_CUSTOM 3
+
+#ifndef KEYBALL_ACCEL_MODE
+#   define KEYBALL_ACCEL_MODE KEYBALL_ACCEL_MODE_DRASHNA
+#endif
+
+// 32-point lookup table for acceleration curve
+// Input speed (0-127) is mapped to these 32 points (interp).
+#define ACCEL_LUT_SIZE 32
+#define ACCEL_MAX_POINTS 16
+#define ACCEL_ALGO_VER_1 1
+
+// Control points for the acceleration curve in LUT mode
+typedef struct {
+    float x;
+    float y;
+} keyball_point_t;
+
+typedef struct {
+    struct {
+        float table[ACCEL_LUT_SIZE];
+        float max_speed_limit; // Safety cap (multiplier)
+        float global_gain;     // Global Multiplier (1.0 = no-op)
+        uint8_t algo_version;
+        uint8_t num_points;
+        keyball_point_t points[ACCEL_MAX_POINTS];
+    } accel_lut;
+    struct {
+        float base;
+        float factor;
+        float max;
+    } accel_simple;
+    struct {
+        float takeoff;
+        float growth_rate;
+        float offset;
+        float limit;
+        float limit_upper;
+    } accel_drashna;
+} keyball_accel_t;
+
+typedef struct {
+    float x;
+    float y;
+} keyball_anisotropy_t;
+
 typedef struct {
     bool this_have_ball;
     bool that_enable;
@@ -178,6 +228,10 @@ typedef struct {
 
     // Buffer to indicate pressing keys.
     char pressing_keys[KEYBALL_OLED_MAX_PRESSING_KEYCODES + 1];
+
+    keyball_accel_t accel;
+    keyball_accel_t accel_default;
+    keyball_anisotropy_t anisotropy;
 } keyball_t;
 
 typedef enum {
@@ -270,57 +324,8 @@ uint16_t keyball_get_cpi(void);
 /// to 34 (3500CPI).
 void keyball_set_cpi(uint16_t cpi);
 
-//////////////////////////////////////////////////////////////////////////////
-// Acceleration Tuning
-
-// Acceleration Modes
-#define KEYBALL_ACCEL_MODE_SIMPLE 0
-#define KEYBALL_ACCEL_MODE_LUT    1
-#define KEYBALL_ACCEL_MODE_DRASHNA 2
-#define KEYBALL_ACCEL_MODE_CUSTOM 3
-
-// Default to LUT if not configured
-#ifndef KEYBALL_ACCEL_MODE
-#   define KEYBALL_ACCEL_MODE KEYBALL_ACCEL_MODE_LUT
-#endif
-
-// 32-point lookup table for acceleration curve
-// Input speed (0-127) is mapped to these 32 points (interp).
-// Values are fixed point (8.8) scale factors.
-// 256 = 1.0x, 512 = 2.0x, etc.
-#define ACCEL_LUT_SIZE 32
-#define ACCEL_MAX_POINTS 16
-#define ACCEL_ALGO_VER_1 1
-
-typedef struct {
-    float x;
-    float y;
-} keyball_point_t;
-
-typedef struct {
-
-        struct {
-            float table[ACCEL_LUT_SIZE];
-            float max_speed_limit; // Safety cap (multiplier)
-            float global_gain;     // Global Multiplier (1.0 = 1.0x)
-            uint8_t algo_version;
-            uint8_t num_points;
-            keyball_point_t points[ACCEL_MAX_POINTS];
-        } accel_lut;
-        struct {
-            float base;
-            float factor;
-            float max;
-        } accel_simple;
-        struct {
-            float takeoff;
-            float growth_rate;
-            float offset;
-            float limit;
-            float limit_upper;
-        } accel_drashna;
-
-} keyball_accel_t;
-
-// Update the default acceleration configuration (and current)
 void keyball_set_default_acceleration_data(const keyball_accel_t *data);
+void keyball_set_default_anisotropy_data(const keyball_anisotropy_t *data);
+
+float keyball_apply_anisotropy_x(int16_t val);
+float keyball_apply_anisotropy_y(int16_t val);

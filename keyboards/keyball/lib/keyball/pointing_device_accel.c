@@ -11,6 +11,8 @@
 
 ASSERT_COMMUNITY_MODULES_MIN_API_VERSION(1, 1, 0);
 
+#include "keyball.h"
+
 static uint32_t pointing_device_accel_timer;
 
 pointing_device_accel_config_t g_pointing_device_accel_config;
@@ -88,10 +90,14 @@ report_mouse_t pointing_device_task_pointing_device_accel(report_mouse_t mouse_r
     // @ankostis)
     static float rounding_carry_x = 0;
     static float rounding_carry_y = 0;
+
+    float dx = keyball_apply_anisotropy_x(mouse_report.x);
+    float dy = keyball_apply_anisotropy_y(mouse_report.y);
+
     // time since last mouse report:
     const uint16_t delta_time = timer_elapsed32(pointing_device_accel_timer);
     // skip pointing_device_accel maths if report = 0, or if pointing_device_accel not enabled.
-    if ((mouse_report.x == 0 && mouse_report.y == 0) || !g_pointing_device_accel_config.enabled ||
+    if ((fabsf(dx) < 1e-4 && fabsf(dy) < 1e-4) || !g_pointing_device_accel_config.enabled ||
         !pointing_device_accel_should_process()) {
         return mouse_report;
     }
@@ -103,8 +109,8 @@ report_mouse_t pointing_device_task_pointing_device_accel(report_mouse_t mouse_r
         rounding_carry_y = 0;
     }
     // Reset carry when pointer swaps direction, to follow user's hand.
-    if (mouse_report.x * rounding_carry_x < 0) rounding_carry_x = 0;
-    if (mouse_report.y * rounding_carry_y < 0) rounding_carry_y = 0;
+    if (dx * rounding_carry_x < 0) rounding_carry_x = 0;
+    if (dy * rounding_carry_y < 0) rounding_carry_y = 0;
     // Limit expensive calls to get device cpi settings only when mouse stationary for > 200ms.
     static uint16_t device_cpi = 300;
     if (delta_time > POINTING_DEVICE_ACCEL_CPI_THROTTLE_MS) {
@@ -113,7 +119,7 @@ report_mouse_t pointing_device_task_pointing_device_accel(report_mouse_t mouse_r
     // calculate dpi correction factor (for normalizing velocity range across different user dpi settings)
     const float dpi_correction = (float)1000.0f / device_cpi;
     // calculate euclidean distance moved (sqrt(x^2 + y^2))
-    const float distance = sqrtf(mouse_report.x * mouse_report.x + mouse_report.y * mouse_report.y);
+    const float distance = sqrtf(dx * dx + dy * dy);
     // calculate delta velocity: dv = distance/dt
     const float velocity_raw = distance / delta_time;
     // correct raw velocity for dpi
@@ -129,8 +135,8 @@ report_mouse_t pointing_device_task_pointing_device_accel(report_mouse_t mouse_r
         g_pointing_device_accel_config.limit_upper -
         (g_pointing_device_accel_config.limit_upper - m) / powf(1 + expf(k * (velocity - s)), g / k);
     // multiply mouse reports by acceleration factor, and account for previous quantization errors:
-    const float new_x = rounding_carry_x + pointing_device_accel_factor * mouse_report.x;
-    const float new_y = rounding_carry_y + pointing_device_accel_factor * mouse_report.y;
+    const float new_x = rounding_carry_x + pointing_device_accel_factor * dx;
+    const float new_y = rounding_carry_y + pointing_device_accel_factor * dy;
     // Accumulate any difference from next integer (quantization).
     rounding_carry_x = new_x - (int)new_x;
     rounding_carry_y = new_y - (int)new_y;
