@@ -215,8 +215,18 @@ void keyboard_post_init_user(void) {
         .y = 1.0f
     };
 
+    const keyball_directional_sensitivity_t directional_sensitivity_conf = {
+        .x_pos = 1.0f,
+        .x_neg = 1.0f,
+        .y_pos = 1.0f,
+        // Upward movmeent is biomechanically "slower" than downward movement, so we give it a boost.
+        // Note upward trackball movement is negative on the Y-axis.
+        .y_neg = 1.25f
+    };
+
     keyball_set_default_acceleration_data(&accel_conf);
     keyball_set_default_anisotropy_data(&anisotropy_conf);
+    keyball_set_default_directional_sensitivity_data(&directional_sensitivity_conf);
 }
 
 bool caps_word_press_user(uint16_t keycode) {

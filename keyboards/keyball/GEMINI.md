@@ -20,6 +20,8 @@ This knowledge base covers the customized Keyball firmware ecosystem.
 *   **Core Driver**: `keyboards/keyball/lib/keyball/`
     *   `keyball.c`: Core logic, custom acceleration algorithms, RawHID dispatch.
     *   `keyball.h`: Config definitions, structs, mode defines.
+    *   `pointing_device_accel.c`: A module called by keyball to apply Drashna's acceleration (see more info below).
+    > **IMPORTANT**: Some operations, such as anisotropy, are applied separately in `keyball.c` and `pointing_device_accel.c`. So, whenever you modify either `keyball.c` or `pointing_device_accel.c`, you must also check the other file to ensure consistency.
 *   **Tools**: `keyboards/keyball/keyball44/keymaps/daniel2887/tools/`
     *   `keyball_tuner/tuner.html`: Standalone WebHID Tuner for LUT acceleration.
 

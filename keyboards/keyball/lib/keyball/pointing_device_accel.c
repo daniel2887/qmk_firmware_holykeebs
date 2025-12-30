@@ -93,6 +93,8 @@ report_mouse_t pointing_device_task_pointing_device_accel(report_mouse_t mouse_r
 
     float dx = keyball_apply_anisotropy_x(mouse_report.x);
     float dy = keyball_apply_anisotropy_y(mouse_report.y);
+    dx = keyball_apply_directional_sensitivity_x(dx);
+    dy = keyball_apply_directional_sensitivity_y(dy);
 
     // time since last mouse report:
     const uint16_t delta_time = timer_elapsed32(pointing_device_accel_timer);

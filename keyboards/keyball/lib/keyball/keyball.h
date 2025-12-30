@@ -202,6 +202,13 @@ typedef struct {
 } keyball_anisotropy_t;
 
 typedef struct {
+    float x_pos;
+    float x_neg;
+    float y_pos;
+    float y_neg;
+} keyball_directional_sensitivity_t;
+
+typedef struct {
     bool this_have_ball;
     bool that_enable;
     bool that_have_ball;
@@ -232,6 +239,7 @@ typedef struct {
     keyball_accel_t accel;
     keyball_accel_t accel_default;
     keyball_anisotropy_t anisotropy;
+    keyball_directional_sensitivity_t directional_sensitivity;
 } keyball_t;
 
 typedef enum {
@@ -329,3 +337,7 @@ void keyball_set_default_anisotropy_data(const keyball_anisotropy_t *data);
 
 float keyball_apply_anisotropy_x(int16_t val);
 float keyball_apply_anisotropy_y(int16_t val);
+
+void keyball_set_default_directional_sensitivity_data(const keyball_directional_sensitivity_t *data);
+float keyball_apply_directional_sensitivity_x(float val);
+float keyball_apply_directional_sensitivity_y(float val);

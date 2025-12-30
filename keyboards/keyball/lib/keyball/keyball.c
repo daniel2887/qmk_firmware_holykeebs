@@ -100,6 +100,7 @@ keyball_t keyball = {
         },
     },
     .anisotropy = {1.0f, 1.0f},
+    .directional_sensitivity = {1.0f, 1.0f, 1.0f, 1.0f},
 };
 
 static uint16_t kb_last_speed = 0;
@@ -130,6 +131,26 @@ float keyball_apply_anisotropy_x(int16_t val) {
 
 float keyball_apply_anisotropy_y(int16_t val) {
     return (float)val * keyball.anisotropy.y;
+}
+
+void keyball_set_default_directional_sensitivity_data(const keyball_directional_sensitivity_t *data) {
+    keyball.directional_sensitivity = *data;
+}
+
+float keyball_apply_directional_sensitivity_x(float val) {
+    if (val > 0) {
+        return val * keyball.directional_sensitivity.x_pos;
+    } else {
+        return val * keyball.directional_sensitivity.x_neg;
+    }
+}
+
+float keyball_apply_directional_sensitivity_y(float val) {
+    if (val > 0) {
+        return val * keyball.directional_sensitivity.y_pos;
+    } else {
+        return val * keyball.directional_sensitivity.y_neg;
+    }
 }
 
 // Drashna Module Shims
@@ -374,6 +395,8 @@ static void keyball_accel_apply_simple(keyball_motion_t *accum, float dx, float 
 static void apply_acceleration(keyball_motion_t *accum, report_mouse_t *report, int16_t *out_x, int16_t *out_y) {
     float dx = keyball_apply_anisotropy_x(report->x);
     float dy = keyball_apply_anisotropy_y(report->y);
+    dx = keyball_apply_directional_sensitivity_x(dx);
+    dy = keyball_apply_directional_sensitivity_y(dy);
 
     if (KEYBALL_ACCEL_MODE == KEYBALL_ACCEL_MODE_LUT) {
         keyball_accel_apply_lut(accum, dx, dy, out_x, out_y);
