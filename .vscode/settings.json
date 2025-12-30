@@ -43,23 +43,48 @@
     "[json]": {
         "editor.formatOnSave": false
     },
-    "clangd.arguments": ["--header-insertion=never"],
+    "clangd.arguments": [
+        "--header-insertion=never",
+        "--compile-commands-dir=${workspaceFolder}"
+    ],
     "json.schemas": [
         {
-            "fileMatch": ["qmk.json"],
+            "fileMatch": [
+                "qmk.json"
+            ],
             "url": "./data/schemas/user_repo_v1_1.jsonschema"
         },
         {
-            "fileMatch": ["qmk_module.json"],
+            "fileMatch": [
+                "qmk_module.json"
+            ],
             "url": "./data/schemas/community_module.jsonschema"
         },
         {
-            "fileMatch": ["keyboard.json", "info.json"],
+            "fileMatch": [
+                "keyboard.json",
+                "info.json"
+            ],
             "url": "./data/schemas/keyboard.jsonschema"
         },
         {
-            "fileMatch": ["keymap.json"],
+            "fileMatch": [
+                "keymap.json"
+            ],
             "url": "./data/schemas/keymap.jsonschema"
         }
-    ]
+    ],
+    "terminal.integrated.profiles.windows": {
+        "QMK_MSYS": {
+            "path": "G:/Program Files/QMK_MSYS/usr/bin/bash.exe",
+            "env": {
+                "MSYSTEM": "MINGW64",
+                "CHERE_INVOKING": "1"
+            },
+            "args": [
+                "--login"
+            ]
+        }
+    },
+    "terminal.integrated.cursorStyle": "line"
 }

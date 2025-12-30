@@ -149,7 +149,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
     [L_AUTO_MOUSE] = LAYOUT_universal(
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_NO,         KC_NO,     KC_NO,          KC_NO,     KC_NO,
-        KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   LALT(KC_LEFT), KC_NO,     LALT(KC_RIGHT),  KC_NO,     KC_NO,
+        KC_NO,          KC_NO,         KC_NO,           MO(L_SYMB),      MO(L_NAV),        KC_NO,                                           KC_NO,   LALT(KC_LEFT), KC_NO,     LALT(KC_RIGHT),  KC_NO,     KC_NO,
         KC_NO,          KC_NO,         KC_NO,           KC_NO,           KC_NO,            KC_NO,                                           KC_NO,   KC_BTN1,       KC_BTN2,   KC_BTN3,        KC_NO,     KC_NO,
                                        KC_NO,           KC_NO,           KC_NO,            KC_NO,        KC_NO,             KC_NO,          KC_NO,                  KC_NO,     KC_NO,          KC_NO
     ),
